@@ -115,6 +115,13 @@ pytest tests/ -v
 
 ---
 
+## 👨‍💻 Author
+
+**Aman**
+- GitHub: [@aman23-cmd](https://github.com/aman23-cmd)
+
+---
+
 ## 📜 License
 
 This project is licensed under the MIT License.
