@@ -1,0 +1,99 @@
+version: "3.9"
+
+# ═══════════════════════════════════════════════════════════════
+#  DevOps Pipeline Agent — Docker Compose Stack
+# ═══════════════════════════════════════════════════════════════
+#  webhook-api   → receives GitHub webhooks, enqueues into Redis
+#  agent-worker  → dequeues failures, diagnoses via LLM, fixes
+#  redis         → message queue between api and worker
+#  postgres      → persistent fix history & audit trail
+# ═══════════════════════════════════════════════════════════════
+
+services:
+
+  # ── Webhook API (FastAPI + Uvicorn) ─────────────────────────
+  webhook-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: devops-webhook-api
+    env_file: .env
+    ports:
+      - "8000:8000"
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - devops-net
+
+  # ── Agent Worker (Redis consumer → LLM → GitHub → Slack) ───
+  agent-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: devops-agent-worker
+    env_file: .env
+    command: ["python", "-m", "agents.worker"]
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - devops-net
+
+  # ── Redis (Message Queue) ──────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: devops-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - devops-net
+
+  # ── PostgreSQL (Persistent Storage) ────────────────────────
+  postgres:
+    image: postgres:15-alpine
+    container_name: devops-postgres
+    environment:
+      POSTGRES_USER: devops
+      POSTGRES_PASSWORD: devops
+      POSTGRES_DB: devops_agent
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U devops -d devops_agent"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - devops-net
+
+volumes:
+  redis-data:
+  pg-data:
+
+networks:
+  devops-net:
+    driver: bridge

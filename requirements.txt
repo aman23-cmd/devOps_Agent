@@ -1,0 +1,38 @@
+# Core Framework
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+python-multipart>=0.0.9
+
+# Data Validation & Settings
+pydantic==2.10.4
+pydantic-settings==2.7.1
+
+# Database
+sqlalchemy==2.0.36
+psycopg2-binary==2.9.10
+alembic==1.14.1
+
+# Redis
+redis==5.2.1
+
+# AI / LLM
+anthropic==0.42.0
+pyautogen==0.2.35
+
+# GitHub API
+PyGithub==2.5.0
+
+# Slack
+slack-sdk==3.34.0
+
+# HTTP
+httpx==0.28.1
+aiohttp>=3.9.0
+
+# Cloud Providers (optional — graceful skip if unconfigured)
+google-cloud-logging==3.11.4
+boto3==1.35.86
+
+# Utilities
+python-dotenv==1.0.1
+tenacity==9.0.0
