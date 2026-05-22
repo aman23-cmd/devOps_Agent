@@ -35,6 +35,7 @@ logger = logging.getLogger("fix_history")
 
 # ── Enums ────────────────────────────────────────────────────────
 
+
 class FixOutcome(str, PyEnum):
     SUCCESS = "success"
     FAILURE = "failure"
@@ -43,6 +44,7 @@ class FixOutcome(str, PyEnum):
 
 
 # ── SQLAlchemy 2.0 declarative base ─────────────────────────────
+
 
 class Base(DeclarativeBase):
     pass
@@ -56,7 +58,9 @@ class FixHistoryRecord(Base):
     __tablename__ = "fix_history"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    run_id = Column(Integer, nullable=False, index=True, comment="GitHub Actions run ID")
+    run_id = Column(
+        Integer, nullable=False, index=True, comment="GitHub Actions run ID"
+    )
     repo = Column(String(256), nullable=False, index=True)
     branch = Column(String(256), nullable=True)
     commit_sha = Column(String(40), nullable=True)
@@ -69,8 +73,12 @@ class FixHistoryRecord(Base):
     explanation = Column(Text, nullable=True)
 
     # Fix
-    fix_applied = Column(Text, nullable=True, comment="Description of the fix that was applied")
-    fix_commands = Column(Text, nullable=True, comment="JSON array of commands executed")
+    fix_applied = Column(
+        Text, nullable=True, comment="Description of the fix that was applied"
+    )
+    fix_commands = Column(
+        Text, nullable=True, comment="JSON array of commands executed"
+    )
     risk_level = Column(String(16), nullable=True)
 
     # Outcome
@@ -82,36 +90,47 @@ class FixHistoryRecord(Base):
 
     # ── Analytics columns ────────────────────────────────────
     duration_seconds = Column(
-        Float, nullable=True,
+        Float,
+        nullable=True,
         comment="Total seconds from failure detection to resolution",
     )
     fix_method = Column(
-        String(64), nullable=True,
+        String(64),
+        nullable=True,
         comment="How the fix was applied: rerun_failed_jobs | pr_created | manual",
     )
     auto_applied = Column(
-        Boolean, nullable=False, default=False,
+        Boolean,
+        nullable=False,
+        default=False,
         comment="True if auto-fix whitelist allowed bypass of human approval",
     )
     approved_by = Column(
-        String(128), nullable=True,
+        String(128),
+        nullable=True,
         comment="Slack username who clicked Apply Fix (null if auto-applied)",
     )
     github_pr_url = Column(
-        String(512), nullable=True,
+        String(512),
+        nullable=True,
         comment="URL of the PR created by the fix executor",
     )
     pagerduty_incident_id = Column(
-        String(64), nullable=True,
+        String(64),
+        nullable=True,
         comment="PagerDuty incident ID if escalation was triggered",
     )
     attempt_number = Column(
-        Integer, nullable=False, default=1,
+        Integer,
+        nullable=False,
+        default=1,
         comment="Which attempt this is for the same run_id (1st, 2nd, …)",
     )
 
     # Slack tracking
-    slack_thread_ts = Column(String(64), nullable=True, comment="Slack message timestamp for threading")
+    slack_thread_ts = Column(
+        String(64), nullable=True, comment="Slack message timestamp for threading"
+    )
 
     # Timestamps
     created_at = Column(
@@ -173,6 +192,7 @@ def get_session() -> Session:
 
 # ── Bootstrap ───────────────────────────────────────────────────
 
+
 def create_tables() -> None:
     """
     Create all tables defined by the ORM.
@@ -186,6 +206,7 @@ def create_tables() -> None:
 
 
 # ── Analytics queries ───────────────────────────────────────────
+
 
 def get_recent_records(limit: int = 20) -> list[dict]:
     """
@@ -211,7 +232,9 @@ def get_recent_records(limit: int = 20) -> list[dict]:
                 "root_cause_category": r.root_cause_category,
                 "confidence": r.confidence,
                 "fix_applied": r.fix_applied,
-                "fix_outcome": r.fix_outcome.value if hasattr(r.fix_outcome, "value") else str(r.fix_outcome),
+                "fix_outcome": r.fix_outcome.value
+                if hasattr(r.fix_outcome, "value")
+                else str(r.fix_outcome),
                 "risk_level": r.risk_level,
                 "fix_method": r.fix_method,
                 "auto_applied": r.auto_applied,
@@ -245,17 +268,20 @@ def get_analytics_summary() -> dict:
         successes = (
             session.query(func.count(FixHistoryRecord.id))
             .filter(FixHistoryRecord.fix_outcome == FixOutcome.SUCCESS)
-            .scalar() or 0
+            .scalar()
+            or 0
         )
         failures = (
             session.query(func.count(FixHistoryRecord.id))
             .filter(FixHistoryRecord.fix_outcome == FixOutcome.FAILURE)
-            .scalar() or 0
+            .scalar()
+            or 0
         )
         pending = (
             session.query(func.count(FixHistoryRecord.id))
             .filter(FixHistoryRecord.fix_outcome == FixOutcome.PENDING)
-            .scalar() or 0
+            .scalar()
+            or 0
         )
         avg_duration = (
             session.query(func.avg(FixHistoryRecord.duration_seconds))
@@ -265,7 +291,8 @@ def get_analytics_summary() -> dict:
         auto_count = (
             session.query(func.count(FixHistoryRecord.id))
             .filter(FixHistoryRecord.auto_applied == True)  # noqa: E712
-            .scalar() or 0
+            .scalar()
+            or 0
         )
 
         # Category breakdown

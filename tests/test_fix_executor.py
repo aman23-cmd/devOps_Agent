@@ -1,10 +1,11 @@
 """
 Tests for agents/fix_executor.py — retry detection, rerun API, and PR creation.
 """
+
 import pytest
 from unittest.mock import patch, AsyncMock, MagicMock
 from api.models import FixProposal, RiskLevel
-from agents.fix_executor import execute_fix, _is_retry_fix, ExecutionResult
+from agents.fix_executor import execute_fix, _is_retry_fix
 
 
 def test_is_retry_fix_with_retry_description_and_retry_command():
@@ -13,7 +14,7 @@ def test_is_retry_fix_with_retry_description_and_retry_command():
         description="Retry the failed job since it is a transient error",
         commands=["retry"],
         risk_level=RiskLevel.LOW,
-        success_probability=0.8
+        success_probability=0.8,
     )
     assert _is_retry_fix(p_retry) is True
 
@@ -24,7 +25,7 @@ def test_is_retry_fix_with_no_commands():
         description="Retry the pipeline",
         commands=[],
         risk_level=RiskLevel.LOW,
-        success_probability=0.8
+        success_probability=0.8,
     )
     assert _is_retry_fix(p_retry) is True
 
@@ -36,7 +37,7 @@ def test_is_retry_fix_with_patches():
         commands=["retry"],
         file_patches={"test.py": "print('ok')"},
         risk_level=RiskLevel.LOW,
-        success_probability=0.8
+        success_probability=0.8,
     )
     assert _is_retry_fix(p_patch) is False
 
@@ -47,7 +48,7 @@ def test_is_retry_fix_with_non_retry_commands():
         description="Run a different script",
         commands=["python script.py"],
         risk_level=RiskLevel.LOW,
-        success_probability=0.8
+        success_probability=0.8,
     )
     assert _is_retry_fix(p_cmd) is False
 
@@ -73,10 +74,12 @@ async def test_execute_retry_fix_success(mock_get_settings, mock_client_class):
         description="Just retry the build",
         commands=["retry"],
         risk_level=RiskLevel.LOW,
-        success_probability=0.7
+        success_probability=0.7,
     )
 
-    result = await execute_fix(proposal, run_id=123, repo="owner/repo", base_branch="main")
+    result = await execute_fix(
+        proposal, run_id=123, repo="owner/repo", base_branch="main"
+    )
 
     assert result.success is True
     assert result.action_taken == "rerun_failed_jobs"
@@ -87,7 +90,7 @@ async def test_execute_retry_fix_success(mock_get_settings, mock_client_class):
             "Authorization": "Bearer test_token",
             "Accept": "application/vnd.github.v3+json",
             "X-GitHub-Api-Version": "2022-11-28",
-        }
+        },
     )
 
 
@@ -166,10 +169,12 @@ async def test_execute_patch_fix_success(mock_get_settings, mock_client_class):
         commands=[],
         file_patches={"main.py": "print('fixed')"},
         risk_level=RiskLevel.MEDIUM,
-        success_probability=0.9
+        success_probability=0.9,
     )
 
-    result = await execute_fix(proposal, run_id=123, repo="owner/repo", base_branch="main")
+    result = await execute_fix(
+        proposal, run_id=123, repo="owner/repo", base_branch="main"
+    )
 
     assert result.success is True
     assert result.action_taken == "pr_created"

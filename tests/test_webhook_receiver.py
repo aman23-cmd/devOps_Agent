@@ -2,10 +2,10 @@
 Tests for api/webhook_receiver.py — signature verification, event filtering,
 and Redis enqueuing.
 """
+
 import hmac
 import hashlib
 import json
-import pytest
 from unittest.mock import AsyncMock, patch
 from fastapi.testclient import TestClient
 
@@ -27,8 +27,8 @@ def test_webhook_invalid_signature():
         json={"dummy": "data"},
         headers={
             "X-Hub-Signature-256": "sha256=invalid_signature",
-            "X-GitHub-Event": "workflow_run"
-        }
+            "X-GitHub-Event": "workflow_run",
+        },
     )
     assert response.status_code == 401
     assert response.json() == {"detail": "Invalid signature"}
@@ -39,11 +39,10 @@ def test_webhook_valid_signature_ignored_event(mock_get_redis):
     secret = "test_secret"
     payload = {"action": "completed", "workflow_run": {"conclusion": "success"}}
     payload_bytes = json.dumps(payload).encode("utf-8")
-    signature = "sha256=" + hmac.new(
-        secret.encode("utf-8"),
-        payload_bytes,
-        hashlib.sha256
-    ).hexdigest()
+    signature = (
+        "sha256="
+        + hmac.new(secret.encode("utf-8"), payload_bytes, hashlib.sha256).hexdigest()
+    )
 
     response = client.post(
         "/webhook/github",
@@ -51,8 +50,8 @@ def test_webhook_valid_signature_ignored_event(mock_get_redis):
         headers={
             "X-Hub-Signature-256": signature,
             "X-GitHub-Event": "workflow_run",
-            "Content-Type": "application/json"
-        }
+            "Content-Type": "application/json",
+        },
     )
     assert response.status_code == 200
     assert response.json()["action"] == "ignored"
@@ -75,18 +74,15 @@ def test_webhook_valid_signature_failed_event(mock_get_redis):
             "head_sha": "abc123sha",
             "name": "CI Build",
             "updated_at": "2026-05-20T12:00:00Z",
-            "html_url": "https://github.com/test/repo/actions/runs/99999"
+            "html_url": "https://github.com/test/repo/actions/runs/99999",
         },
-        "repository": {
-            "full_name": "test/repo"
-        }
+        "repository": {"full_name": "test/repo"},
     }
     payload_bytes = json.dumps(payload).encode("utf-8")
-    signature = "sha256=" + hmac.new(
-        secret.encode("utf-8"),
-        payload_bytes,
-        hashlib.sha256
-    ).hexdigest()
+    signature = (
+        "sha256="
+        + hmac.new(secret.encode("utf-8"), payload_bytes, hashlib.sha256).hexdigest()
+    )
 
     response = client.post(
         "/webhook/github",
@@ -94,8 +90,8 @@ def test_webhook_valid_signature_failed_event(mock_get_redis):
         headers={
             "X-Hub-Signature-256": signature,
             "X-GitHub-Event": "workflow_run",
-            "Content-Type": "application/json"
-        }
+            "Content-Type": "application/json",
+        },
     )
 
     assert response.status_code == 200

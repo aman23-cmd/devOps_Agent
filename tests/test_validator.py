@@ -1,6 +1,6 @@
 """Tests for agents/validator.py — polling, success/failure, PagerDuty."""
+
 import pytest
-from datetime import datetime, timezone
 from unittest.mock import patch, AsyncMock, MagicMock
 from agents.validator import _format_duration
 
@@ -48,11 +48,14 @@ async def test_validate_fix_success(
 
     resp_list = MagicMock()
     resp_list.json.return_value = {
-        "workflow_runs": [{
-            "id": 100001, "status": "completed",
-            "conclusion": "success",
-            "created_at": "2026-05-20T12:05:00Z",
-        }]
+        "workflow_runs": [
+            {
+                "id": 100001,
+                "status": "completed",
+                "conclusion": "success",
+                "created_at": "2026-05-20T12:05:00Z",
+            }
+        ]
     }
     resp_list.status_code = 200
     resp_list.raise_for_status = MagicMock()
@@ -63,18 +66,22 @@ async def test_validate_fix_success(
     mock_http.get.side_effect = mock_get
 
     from agents.fix_executor import ExecutionResult
-    from agents.validator import FixValidator, POLL_INTERVAL_SECONDS
+    from agents.validator import FixValidator
 
     validator = FixValidator()
     er = ExecutionResult(
-        success=True, action_taken="rerun_failed_jobs",
+        success=True,
+        action_taken="rerun_failed_jobs",
         github_url="https://github.com/owner/repo/pull/1",
     )
 
     with patch("agents.validator.POLL_INTERVAL_SECONDS", 0.01):
         result = await validator.validate_fix(
-            repo="owner/repo", branch="main", run_id=123,
-            execution_result=er, slack_ts="111.222",
+            repo="owner/repo",
+            branch="main",
+            run_id=123,
+            execution_result=er,
+            slack_ts="111.222",
         )
 
     assert result["validated"] is True

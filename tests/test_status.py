@@ -1,6 +1,6 @@
 """Tests for api/status.py — /status and /status/recent endpoints."""
-import pytest
-from unittest.mock import patch, MagicMock
+
+from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 from api.webhook_receiver import app

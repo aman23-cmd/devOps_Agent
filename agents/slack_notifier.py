@@ -17,7 +17,7 @@ from __future__ import annotations
 import json
 import logging
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any
 
 from slack_sdk.web.async_client import AsyncWebClient
 from slack_sdk.errors import SlackApiError
@@ -81,7 +81,10 @@ class SlackNotifier:
         """
         channel = channel_id or self._default_channel
         best_fix = fix_proposals[0] if fix_proposals else None
-        run_link = event.html_url or f"https://github.com/{event.repo_full_name}/actions/runs/{event.run_id}"
+        run_link = (
+            event.html_url
+            or f"https://github.com/{event.repo_full_name}/actions/runs/{event.run_id}"
+        )
 
         blocks: list[dict[str, Any]] = [
             # ── Header ───────────────────────────────────────
@@ -130,69 +133,86 @@ class SlackNotifier:
         # ── Contributing factors ─────────────────────────────
         if diagnosis.contributing_factors:
             factors = "\n".join(f"• {f}" for f in diagnosis.contributing_factors[:5])
-            blocks.append({
-                "type": "context",
-                "elements": [
-                    {
-                        "type": "mrkdwn",
-                        "text": f"*Contributing Factors:*\n{factors}",
-                    }
-                ],
-            })
+            blocks.append(
+                {
+                    "type": "context",
+                    "elements": [
+                        {
+                            "type": "mrkdwn",
+                            "text": f"*Contributing Factors:*\n{factors}",
+                        }
+                    ],
+                }
+            )
 
         # ── Fix recommendation ───────────────────────────────
         if best_fix:
             risk_badge = _RISK_BADGE.get(best_fix.risk_level, "⚪ UNKNOWN")
 
-            blocks.extend([
-                {"type": "divider"},
-                {
-                    "type": "section",
-                    "text": {
-                        "type": "mrkdwn",
-                        "text": (
-                            f"*🔧 Recommended Fix*\n\n"
-                            f"{best_fix.description}\n\n"
-                            f"*Risk:* {risk_badge}  |  "
-                            f"*Success Probability:* `{best_fix.success_probability:.0%}`"
-                        ),
+            blocks.extend(
+                [
+                    {"type": "divider"},
+                    {
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": (
+                                f"*🔧 Recommended Fix*\n\n"
+                                f"{best_fix.description}\n\n"
+                                f"*Risk:* {risk_badge}  |  "
+                                f"*Success Probability:* `{best_fix.success_probability:.0%}`"
+                            ),
+                        },
                     },
-                },
-            ])
+                ]
+            )
 
             if best_fix.commands:
                 cmd_text = "\n".join(best_fix.commands[:8])
-                blocks.append({
-                    "type": "section",
-                    "text": {
-                        "type": "mrkdwn",
-                        "text": f"*Commands:*\n```{cmd_text}```",
-                    },
-                })
+                blocks.append(
+                    {
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": f"*Commands:*\n```{cmd_text}```",
+                        },
+                    }
+                )
 
             if len(fix_proposals) > 1:
                 alt_text = "\n".join(
                     f"  {i}. {f.description} ({_RISK_BADGE.get(f.risk_level, '?')} — {f.success_probability:.0%})"
                     for i, f in enumerate(fix_proposals[1:], 2)
                 )
-                blocks.append({
-                    "type": "context",
-                    "elements": [
-                        {"type": "mrkdwn", "text": f"*Alternative fixes:*\n{alt_text}"},
-                    ],
-                })
+                blocks.append(
+                    {
+                        "type": "context",
+                        "elements": [
+                            {
+                                "type": "mrkdwn",
+                                "text": f"*Alternative fixes:*\n{alt_text}",
+                            },
+                        ],
+                    }
+                )
 
         # ── Action buttons ───────────────────────────────────
-        action_payload = json.dumps({
-            "run_id": event.run_id,
-            "repo": event.repo_full_name,
-            "branch": event.branch,
-        })
+        action_payload = json.dumps(
+            {
+                "run_id": event.run_id,
+                "repo": event.repo_full_name,
+                "branch": event.branch,
+            }
+        )
 
         action_elements: list[dict] = [
             {
                 "type": "button",
-                "text": {"type": "plain_text", "text": "✅ Apply Suggested Fix", "emoji": True},
+                "text": {
+                    "type": "plain_text",
+                    "text": "✅ Apply Suggested Fix",
+                    "emoji": True,
+                },
                 "style": "primary",
                 "action_id": "apply_fix",
                 "value": action_payload,
@@ -211,13 +231,21 @@ class SlackNotifier:
             },
             {
                 "type": "button",
-                "text": {"type": "plain_text", "text": "🔄 Retry Pipeline", "emoji": True},
+                "text": {
+                    "type": "plain_text",
+                    "text": "🔄 Retry Pipeline",
+                    "emoji": True,
+                },
                 "action_id": "retry_pipeline",
                 "value": action_payload,
             },
             {
                 "type": "button",
-                "text": {"type": "plain_text", "text": "📋 View Full Logs", "emoji": True},
+                "text": {
+                    "type": "plain_text",
+                    "text": "📋 View Full Logs",
+                    "emoji": True,
+                },
                 "url": run_link,
                 "action_id": "view_logs",
             },
@@ -226,15 +254,17 @@ class SlackNotifier:
         blocks.append({"type": "actions", "elements": action_elements})
 
         # ── Timestamp footer ─────────────────────────────────
-        blocks.append({
-            "type": "context",
-            "elements": [
-                {
-                    "type": "mrkdwn",
-                    "text": f"⏱️ Detected at {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}",
-                }
-            ],
-        })
+        blocks.append(
+            {
+                "type": "context",
+                "elements": [
+                    {
+                        "type": "mrkdwn",
+                        "text": f"⏱️ Detected at {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}",
+                    }
+                ],
+            }
+        )
 
         # ── Send ─────────────────────────────────────────────
         try:
@@ -315,20 +345,24 @@ class SlackNotifier:
             detail_text = details
             if github_url:
                 detail_text += f"\n<{github_url}|View on GitHub>"
-            blocks.append({
-                "type": "section",
-                "text": {"type": "mrkdwn", "text": detail_text},
-            })
-
-        blocks.append({
-            "type": "context",
-            "elements": [
+            blocks.append(
                 {
-                    "type": "mrkdwn",
-                    "text": f"🕐 Resolved at {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}",
+                    "type": "section",
+                    "text": {"type": "mrkdwn", "text": detail_text},
                 }
-            ],
-        })
+            )
+
+        blocks.append(
+            {
+                "type": "context",
+                "elements": [
+                    {
+                        "type": "mrkdwn",
+                        "text": f"🕐 Resolved at {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}",
+                    }
+                ],
+            }
+        )
 
         try:
             await self._client.chat_postMessage(

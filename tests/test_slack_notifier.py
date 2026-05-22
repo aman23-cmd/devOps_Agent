@@ -1,11 +1,14 @@
 """Tests for agents/slack_notifier.py — Block Kit structure and button payloads."""
-import json
+
 import pytest
 from unittest.mock import patch, AsyncMock, MagicMock
 from datetime import datetime, timezone
 from api.models import (
-    PipelineFailureEvent, DiagnosisResult, FixProposal,
-    RiskLevel, RootCauseCategory,
+    PipelineFailureEvent,
+    DiagnosisResult,
+    FixProposal,
+    RiskLevel,
+    RootCauseCategory,
 )
 
 
@@ -23,11 +26,15 @@ async def test_send_failure_alert(mock_settings_fn, mock_ws_cls):
     mock_ws.chat_postMessage.return_value = {"ts": "12345.67890"}
 
     from agents.slack_notifier import SlackNotifier
+
     notifier = SlackNotifier()
 
     event = PipelineFailureEvent(
-        run_id=123, repo_full_name="owner/repo", branch="main",
-        commit_sha="a" * 40, workflow_name="ci.yml",
+        run_id=123,
+        repo_full_name="owner/repo",
+        branch="main",
+        commit_sha="a" * 40,
+        workflow_name="ci.yml",
         failed_at=datetime.now(timezone.utc),
         html_url="https://github.com/owner/repo/actions/runs/123",
     )
@@ -35,13 +42,16 @@ async def test_send_failure_alert(mock_settings_fn, mock_ws_cls):
         failure_step="npm install",
         error_message="npm ERR! code ERESOLVE",
         root_cause_category=RootCauseCategory.DEPENDENCY_ISSUE,
-        confidence=0.85, explanation="Dep fail.",
-        contributing_factors=["ver"], action_required=None,
+        confidence=0.85,
+        explanation="Dep fail.",
+        contributing_factors=["ver"],
+        action_required=None,
     )
     fix = FixProposal(
         description="Run npm install --legacy-peer-deps",
         commands=["npm install --legacy-peer-deps"],
-        risk_level=RiskLevel.LOW, success_probability=0.9,
+        risk_level=RiskLevel.LOW,
+        success_probability=0.9,
     )
 
     ts = await notifier.send_failure_alert(None, event, diag, [fix])

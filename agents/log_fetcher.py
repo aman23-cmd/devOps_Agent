@@ -50,6 +50,7 @@ STACK_TRACE_START = re.compile(
 
 # ── The tool function registered with the UserProxyAgent ─────────
 
+
 async def fetch_github_logs(
     run_id: int,
     repo: str,
@@ -140,7 +141,10 @@ async def fetch_github_logs(
 
     logger.info(
         "Logs fetched — run_id=%d total=%d kept=%d failed_step=%s",
-        run_id, total_lines, kept_lines, failed_step,
+        run_id,
+        total_lines,
+        kept_lines,
+        failed_step,
     )
 
     return {
@@ -156,6 +160,7 @@ async def fetch_github_logs(
 
 
 # ── Helper: Fetch failed jobs metadata ───────────────────────────
+
 
 async def _fetch_failed_jobs(
     repo: str,
@@ -173,18 +178,20 @@ async def _fetch_failed_jobs(
         failed = []
         for job in response.json().get("jobs", []):
             if job.get("conclusion") == "failure":
-                failed.append({
-                    "job_id": job["id"],
-                    "name": job["name"],
-                    "conclusion": job["conclusion"],
-                    "started_at": job.get("started_at"),
-                    "completed_at": job.get("completed_at"),
-                    "failed_steps": [
-                        step["name"]
-                        for step in job.get("steps", [])
-                        if step.get("conclusion") == "failure"
-                    ],
-                })
+                failed.append(
+                    {
+                        "job_id": job["id"],
+                        "name": job["name"],
+                        "conclusion": job["conclusion"],
+                        "started_at": job.get("started_at"),
+                        "completed_at": job.get("completed_at"),
+                        "failed_steps": [
+                            step["name"]
+                            for step in job.get("steps", [])
+                            if step.get("conclusion") == "failure"
+                        ],
+                    }
+                )
         return failed
 
     except Exception as exc:
@@ -193,6 +200,7 @@ async def _fetch_failed_jobs(
 
 
 # ── Helper: Extract ZIP archive ──────────────────────────────────
+
 
 def _extract_zip_archive(
     zip_bytes: bytes,
@@ -233,6 +241,7 @@ def _extract_zip_archive(
 
 # ── Helper: Smart truncation ────────────────────────────────────
 
+
 def _smart_truncate(
     job_logs: dict[str, list[str]],
     failed_step_names: set[str],
@@ -257,10 +266,10 @@ def _smart_truncate(
         # Determine if this file corresponds to a failed step
         is_failed = any(step_name in filename for step_name in failed_step_names)
 
-        header = f"\n{'='*60}\n  LOG: {filename}"
+        header = f"\n{'=' * 60}\n  LOG: {filename}"
         if is_failed:
             header += " [FAILED ❌]"
-        header += f"\n{'='*60}\n"
+        header += f"\n{'=' * 60}\n"
 
         if is_failed:
             # Keep full output for failed steps
@@ -268,10 +277,9 @@ def _smart_truncate(
         else:
             # Keep only last N lines for passing steps
             if len(lines) > PASSING_TAIL:
-                section_lines = (
-                    [f"... [{len(lines) - PASSING_TAIL} lines omitted (passing step)] ..."]
-                    + lines[-PASSING_TAIL:]
-                )
+                section_lines = [
+                    f"... [{len(lines) - PASSING_TAIL} lines omitted (passing step)] ..."
+                ] + lines[-PASSING_TAIL:]
             else:
                 section_lines = lines
 
@@ -288,7 +296,9 @@ def _smart_truncate(
         tail_budget = max_lines - head_budget
         combined = "\n".join(
             combined_lines[:head_budget]
-            + [f"\n... [{len(combined_lines) - max_lines} lines truncated to fit {max_lines} line cap] ...\n"]
+            + [
+                f"\n... [{len(combined_lines) - max_lines} lines truncated to fit {max_lines} line cap] ...\n"
+            ]
             + combined_lines[-tail_budget:]
         )
         kept_lines = max_lines
@@ -297,6 +307,7 @@ def _smart_truncate(
 
 
 # ── Helper: Extract primary error ────────────────────────────────
+
 
 def _extract_primary_error(logs: str) -> str:
     """Pull the most relevant error message from the logs."""
@@ -319,6 +330,7 @@ def _extract_primary_error(logs: str) -> str:
 
 
 # ── Helper: Extract stack trace ──────────────────────────────────
+
 
 def _extract_stack_trace(logs: str) -> str | None:
     """Extract the first complete stack trace from the logs."""

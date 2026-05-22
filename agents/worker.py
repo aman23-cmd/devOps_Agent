@@ -23,7 +23,6 @@ import logging
 import signal
 import sys
 from datetime import datetime, timezone
-from typing import Any
 
 import redis.asyncio as aioredis
 
@@ -32,7 +31,6 @@ from api.models import (
     FixProposal,
     PipelineFailureEvent,
     RiskLevel,
-    RootCauseCategory,
 )
 from agents.coordinator import run_diagnosis_workflow
 from agents.fix_generator import generate_fix_proposals, should_auto_apply
@@ -75,8 +73,16 @@ class AgentWorker:
 
         logger.info("=" * 64)
         logger.info("  DevOps Pipeline Agent — Worker v2")
-        logger.info("  env=%s  model=%s", self._settings.ENVIRONMENT, self._settings.ANTHROPIC_MODEL)
-        logger.info("  max_rounds=%d  max_retries=%d", self._settings.AUTOGEN_MAX_ROUNDS, MAX_RETRIES)
+        logger.info(
+            "  env=%s  model=%s",
+            self._settings.ENVIRONMENT,
+            self._settings.ANTHROPIC_MODEL,
+        )
+        logger.info(
+            "  max_rounds=%d  max_retries=%d",
+            self._settings.AUTOGEN_MAX_ROUNDS,
+            MAX_RETRIES,
+        )
         logger.info("=" * 64)
 
         create_tables()
@@ -147,7 +153,10 @@ class AgentWorker:
             try:
                 logger.info(
                     "Attempt %d/%d — run_id=%d repo=%s",
-                    attempt, MAX_RETRIES, event.run_id, event.repo_full_name,
+                    attempt,
+                    MAX_RETRIES,
+                    event.run_id,
+                    event.repo_full_name,
                 )
                 await self._process_event(event)
                 return
@@ -156,12 +165,17 @@ class AgentWorker:
                 backoff = BASE_BACKOFF_SECONDS * (2 ** (attempt - 1))
                 logger.error(
                     "Attempt %d/%d failed: %s — retrying in %ds",
-                    attempt, MAX_RETRIES, exc, backoff,
+                    attempt,
+                    MAX_RETRIES,
+                    exc,
+                    backoff,
                 )
                 if attempt < MAX_RETRIES:
                     await asyncio.sleep(backoff)
 
-        logger.critical("All %d retries exhausted for run_id=%d", MAX_RETRIES, event.run_id)
+        logger.critical(
+            "All %d retries exhausted for run_id=%d", MAX_RETRIES, event.run_id
+        )
         await self._send_failure_alert(event, last_error)
 
     # ═════════════════════════════════════════════════════════
@@ -190,11 +204,15 @@ class AgentWorker:
 
         # ── 2. Generate fix proposals ────────────────────────
         fix_proposals = await generate_fix_proposals(event, diagnosis)
-        best_fix = fix_proposals[0] if fix_proposals else FixProposal(
-            description="No automated fix available — manual investigation required",
-            commands=[],
-            risk_level=RiskLevel.HIGH,
-            success_probability=0.0,
+        best_fix = (
+            fix_proposals[0]
+            if fix_proposals
+            else FixProposal(
+                description="No automated fix available — manual investigation required",
+                commands=[],
+                risk_level=RiskLevel.HIGH,
+                success_probability=0.0,
+            )
         )
 
         logger.info(
@@ -378,6 +396,7 @@ class AgentWorker:
 
         try:
             from slack_sdk.web.async_client import AsyncWebClient
+
             client = AsyncWebClient(token=self._settings.SLACK_BOT_TOKEN)
             await client.chat_postMessage(
                 channel=self._settings.SLACK_CHANNEL_ID,
@@ -395,6 +414,7 @@ class AgentWorker:
 
 
 # ── Entry point ──────────────────────────────────────────────────
+
 
 async def main() -> None:
     worker = AgentWorker()

@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field
 
 # ── Enums ────────────────────────────────────────────────────────
 
+
 class RiskLevel(str, Enum):
     LOW = "LOW"
     MEDIUM = "MEDIUM"
@@ -26,6 +27,7 @@ class RiskLevel(str, Enum):
 
 class RootCauseCategory(str, Enum):
     """Granular failure classifications used by the diagnosis agent."""
+
     FLAKY_TEST = "flaky_test"
     DEPENDENCY_ISSUE = "dependency_issue"
     ENV_MISMATCH = "env_mismatch"
@@ -39,8 +41,10 @@ class RootCauseCategory(str, Enum):
 
 # ── Pipeline Failure (webhook → Redis) ───────────────────────────
 
+
 class PipelineFailureEvent(BaseModel):
     """Normalised payload pushed to the Redis queue."""
+
     run_id: int = Field(..., description="GitHub Actions workflow run ID")
     repo_full_name: str = Field(..., description="owner/repo")
     branch: str = Field(..., description="Branch that triggered the run")
@@ -60,8 +64,10 @@ class PipelineFailureEvent(BaseModel):
 
 # ── Diagnosis (LLM output) ──────────────────────────────────────
 
+
 class DiagnosisResult(BaseModel):
     """Structured root-cause analysis returned by the AI agent."""
+
     failure_step: str = Field(
         ...,
         description="CI step name where the failure originated (e.g. 'npm install')",
@@ -96,8 +102,10 @@ class DiagnosisResult(BaseModel):
 
 # ── Fix Proposal ────────────────────────────────────────────────
 
+
 class FixProposal(BaseModel):
     """Actionable remediation the agent can apply or suggest."""
+
     description: str = Field(
         ...,
         description="Plain-English summary of the proposed fix",

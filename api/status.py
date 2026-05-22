@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone
-from typing import Any
 
 from fastapi import APIRouter, Query
 
@@ -47,7 +46,9 @@ async def agent_status():
 
 @router.get("/recent")
 async def recent_fixes(
-    limit: int = Query(default=20, ge=1, le=100, description="Number of records to return"),
+    limit: int = Query(
+        default=20, ge=1, le=100, description="Number of records to return"
+    ),
 ):
     """
     Fetch the most recent fix history records.

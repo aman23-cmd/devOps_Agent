@@ -2,6 +2,7 @@
 Shared test configuration — ensures all required environment variables
 are set before any module imports Settings.
 """
+
 import os
 
 # Set all required env vars BEFORE any test module imports Settings.
@@ -17,5 +18,5 @@ os.environ.setdefault("DATABASE_URL", "postgresql://devops:devops@localhost/devo
 
 # Clear the lru_cache so Settings picks up our test env vars
 from config.settings import get_settings
-get_settings.cache_clear()
 
+get_settings.cache_clear()

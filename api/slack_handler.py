@@ -17,8 +17,6 @@ import hmac
 import json
 import logging
 import time
-from datetime import datetime, timezone
-from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, status
 
@@ -37,6 +35,7 @@ router = APIRouter(prefix="/slack", tags=["slack"])
 # ═════════════════════════════════════════════════════════════════
 #  Signature verification
 # ═════════════════════════════════════════════════════════════════
+
 
 def _verify_slack_signature(
     body: bytes,
@@ -57,11 +56,14 @@ def _verify_slack_signature(
         return False
 
     sig_basestring = f"v0:{timestamp}:{body.decode('utf-8')}"
-    computed = "v0=" + hmac.new(
-        signing_secret.encode("utf-8"),
-        sig_basestring.encode("utf-8"),
-        hashlib.sha256,
-    ).hexdigest()
+    computed = (
+        "v0="
+        + hmac.new(
+            signing_secret.encode("utf-8"),
+            sig_basestring.encode("utf-8"),
+            hashlib.sha256,
+        ).hexdigest()
+    )
 
     return hmac.compare_digest(computed, signature)
 
@@ -69,6 +71,7 @@ def _verify_slack_signature(
 # ═════════════════════════════════════════════════════════════════
 #  Main endpoint
 # ═════════════════════════════════════════════════════════════════
+
 
 @router.post("/interact")
 async def handle_slack_interaction(
@@ -89,7 +92,10 @@ async def handle_slack_interaction(
     signature = request.headers.get("X-Slack-Signature", "")
 
     if not _verify_slack_signature(
-        raw_body, timestamp, signature, settings.SLACK_SIGNING_SECRET,
+        raw_body,
+        timestamp,
+        signature,
+        settings.SLACK_SIGNING_SECRET,
     ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -117,20 +123,35 @@ async def handle_slack_interaction(
 
     logger.info(
         "Slack interaction — action=%s run_id=%s repo=%s user=%s",
-        action_id, run_id, repo, user,
+        action_id,
+        run_id,
+        repo,
+        user,
     )
 
     # ── Route to handler ─────────────────────────────────────
     if action_id == "apply_fix":
         # Respond immediately, process in background
         background_tasks.add_task(
-            _handle_apply_fix, run_id, repo, branch, user, channel, message_ts,
+            _handle_apply_fix,
+            run_id,
+            repo,
+            branch,
+            user,
+            channel,
+            message_ts,
         )
         return {"ok": True}
 
     elif action_id == "retry_pipeline":
         background_tasks.add_task(
-            _handle_retry_pipeline, run_id, repo, branch, user, channel, message_ts,
+            _handle_retry_pipeline,
+            run_id,
+            repo,
+            branch,
+            user,
+            channel,
+            message_ts,
         )
         return {"ok": True}
 
@@ -146,6 +167,7 @@ async def handle_slack_interaction(
 # ═════════════════════════════════════════════════════════════════
 #  Action: Apply Fix
 # ═════════════════════════════════════════════════════════════════
+
 
 async def _handle_apply_fix(
     run_id: int,
@@ -277,6 +299,7 @@ async def _handle_apply_fix(
 #  Action: Retry Pipeline
 # ═════════════════════════════════════════════════════════════════
 
+
 async def _handle_retry_pipeline(
     run_id: int,
     repo: str,
@@ -360,6 +383,7 @@ async def _handle_retry_pipeline(
 # ═════════════════════════════════════════════════════════════════
 #  Async validation runner
 # ═════════════════════════════════════════════════════════════════
+
 
 async def _run_validation(
     repo: str,

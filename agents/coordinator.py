@@ -23,7 +23,7 @@ import asyncio
 import json
 import logging
 import re
-from typing import Any, Optional
+from typing import Any
 
 import autogen
 
@@ -43,6 +43,7 @@ logger = logging.getLogger("coordinator")
 
 
 # ── LLM config builder ──────────────────────────────────────────
+
 
 def _build_llm_config() -> dict[str, Any]:
     """
@@ -71,12 +72,14 @@ def _build_llm_config() -> dict[str, Any]:
 # We wrap our async tools so they can be called from within the
 # GroupChat execution context.
 
+
 def _sync_fetch_logs(run_id: int, repo: str) -> str:
     """Synchronous wrapper around the async log fetcher."""
     loop = asyncio.get_event_loop()
     if loop.is_running():
         # We're inside an async context — use nest_asyncio pattern
         import concurrent.futures
+
         with concurrent.futures.ThreadPoolExecutor() as pool:
             result = pool.submit(
                 asyncio.run, fetch_github_logs(run_id=run_id, repo=repo)
@@ -92,6 +95,7 @@ def _sync_get_cloud_context(repo: str, failed_at_timestamp: str) -> str:
     loop = asyncio.get_event_loop()
     if loop.is_running():
         import concurrent.futures
+
         with concurrent.futures.ThreadPoolExecutor() as pool:
             result = pool.submit(
                 asyncio.run,
@@ -106,6 +110,7 @@ def _sync_get_cloud_context(repo: str, failed_at_timestamp: str) -> str:
 
 
 # ── Agent factory ────────────────────────────────────────────────
+
 
 def _create_agents(
     llm_config: dict[str, Any],
@@ -212,6 +217,7 @@ def _create_agents(
 
 # ── GroupChat setup ──────────────────────────────────────────────
 
+
 def _create_group_chat(
     coordinator: autogen.UserProxyAgent,
     log_fetcher: autogen.UserProxyAgent,
@@ -245,6 +251,7 @@ def _create_group_chat(
 
 # ── Result extraction ────────────────────────────────────────────
 
+
 def _extract_diagnosis_from_chat(
     chat_history: list[dict[str, Any]],
 ) -> dict[str, Any] | None:
@@ -267,7 +274,7 @@ def _extract_diagnosis_from_chat(
 
         # Try to extract JSON from within the message (code blocks etc.)
         json_blocks = re.findall(
-            r'```(?:json)?\s*\n?(.*?)\n?\s*```',
+            r"```(?:json)?\s*\n?(.*?)\n?\s*```",
             content,
             re.DOTALL,
         )
@@ -277,7 +284,7 @@ def _extract_diagnosis_from_chat(
                 return parsed
 
         # Try to find raw JSON object in the text
-        brace_match = re.search(r'\{.*\}', content, re.DOTALL)
+        brace_match = re.search(r"\{.*\}", content, re.DOTALL)
         if brace_match:
             parsed = _try_parse_json(brace_match.group())
             if parsed and "diagnosis" in parsed:
@@ -295,6 +302,7 @@ def _try_parse_json(text: str) -> dict[str, Any] | None:
 
 
 # ── Main workflow function ───────────────────────────────────────
+
 
 async def run_diagnosis_workflow(
     event: PipelineFailureEvent,
@@ -326,7 +334,9 @@ async def run_diagnosis_workflow(
     )
 
     # ── Create agents ────────────────────────────────────────
-    coordinator, log_fetcher, cloud_enricher, diagnosis_agent = _create_agents(llm_config)
+    coordinator, log_fetcher, cloud_enricher, diagnosis_agent = _create_agents(
+        llm_config
+    )
 
     # ── Create GroupChat ─────────────────────────────────────
     group_chat, manager = _create_group_chat(
@@ -422,7 +432,11 @@ async def run_diagnosis_workflow(
     for fix_raw in raw_diagnosis.get("fix_proposals", []):
         try:
             risk_str = fix_raw.get("risk_level", "HIGH")
-            risk = RiskLevel(risk_str.upper()) if isinstance(risk_str, str) else RiskLevel.HIGH
+            risk = (
+                RiskLevel(risk_str.upper())
+                if isinstance(risk_str, str)
+                else RiskLevel.HIGH
+            )
 
             fix = FixProposal(
                 description=fix_raw.get("description", "No description"),
@@ -438,7 +452,11 @@ async def run_diagnosis_workflow(
     # Determine action taken
     if action_required == "human_review":
         action_taken = "escalated_to_human"
-    elif fix_proposals and fix_proposals[0].risk_level == RiskLevel.LOW and confidence >= 0.85:
+    elif (
+        fix_proposals
+        and fix_proposals[0].risk_level == RiskLevel.LOW
+        and confidence >= 0.85
+    ):
         action_taken = "auto_fix_eligible"
     else:
         action_taken = "awaiting_approval"

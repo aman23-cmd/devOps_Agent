@@ -16,7 +16,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any
 
 import httpx
 
@@ -54,7 +54,9 @@ class FixValidator:
         settings = get_settings()
         self._token = settings.GITHUB_TOKEN
         self._notifier = SlackNotifier()
-        self._pagerduty_key: str | None = getattr(settings, "PAGERDUTY_ROUTING_KEY", None)
+        self._pagerduty_key: str | None = getattr(
+            settings, "PAGERDUTY_ROUTING_KEY", None
+        )
 
     async def validate_fix(
         self,
@@ -87,7 +89,9 @@ class FixValidator:
         """
         logger.info(
             "Starting fix validation — repo=%s branch=%s original_run=%d",
-            repo, branch, run_id,
+            repo,
+            branch,
+            run_id,
         )
 
         if slack_ts:
@@ -110,7 +114,8 @@ class FixValidator:
 
             logger.debug(
                 "Polling GitHub — elapsed=%ds/%ds",
-                elapsed, POLL_TIMEOUT_SECONDS,
+                elapsed,
+                POLL_TIMEOUT_SECONDS,
             )
 
             new_run = await self._find_new_run(
@@ -131,20 +136,22 @@ class FixValidator:
             if status != "completed":
                 logger.info(
                     "New run found (id=%d) but status=%s — waiting...",
-                    new_run_id, status,
+                    new_run_id,
+                    status,
                 )
                 continue
 
             # Run completed — evaluate outcome
             fix_duration = datetime.now(timezone.utc) - start_time
             time_to_fix = _format_duration(fix_duration.total_seconds())
-            detect_duration = (start_time - (original_run_created_at or start_time))
+            detect_duration = start_time - (original_run_created_at or start_time)
             time_to_detect = _format_duration(detect_duration.total_seconds())
 
             if conclusion == "success":
                 logger.info(
                     "✅ Fix validated — new run %d succeeded in %s",
-                    new_run_id, time_to_fix,
+                    new_run_id,
+                    time_to_fix,
                 )
                 await self._handle_success(
                     repo=repo,
@@ -167,7 +174,8 @@ class FixValidator:
             else:
                 logger.warning(
                     "❌ Fix did not resolve the issue — new run %d concluded: %s",
-                    new_run_id, conclusion,
+                    new_run_id,
+                    conclusion,
                 )
                 await self._handle_failure(
                     repo=repo,
@@ -355,7 +363,9 @@ class FixValidator:
 
             logger.critical(
                 "🚨 %d consecutive failures for category=%s repo=%s — escalating!",
-                CONSECUTIVE_FAILURE_THRESHOLD, category, repo,
+                CONSECUTIVE_FAILURE_THRESHOLD,
+                category,
+                repo,
             )
 
             # PagerDuty alert
@@ -422,11 +432,14 @@ class FixValidator:
             async with httpx.AsyncClient(timeout=15.0) as client:
                 response = await client.post(url, json=payload)
                 if response.status_code == 202:
-                    logger.info("PagerDuty alert sent — repo=%s category=%s", repo, category)
+                    logger.info(
+                        "PagerDuty alert sent — repo=%s category=%s", repo, category
+                    )
                 else:
                     logger.error(
                         "PagerDuty alert failed: %d %s",
-                        response.status_code, response.text[:200],
+                        response.status_code,
+                        response.text[:200],
                     )
         except Exception as exc:
             logger.error("PagerDuty request failed: %s", exc)
@@ -491,7 +504,9 @@ class FixValidator:
 
                 created_at_str = run.get("created_at", "")
                 try:
-                    created_at = datetime.fromisoformat(created_at_str.replace("Z", "+00:00"))
+                    created_at = datetime.fromisoformat(
+                        created_at_str.replace("Z", "+00:00")
+                    )
                 except (ValueError, AttributeError):
                     continue
 
@@ -506,6 +521,7 @@ class FixValidator:
 
 
 # ── Utility ──────────────────────────────────────────────────────
+
 
 def _format_duration(seconds: float) -> str:
     """Format seconds into human-readable duration."""

@@ -46,6 +46,7 @@ async def _get_redis(settings: Settings) -> aioredis.Redis:
 
 # ── Application lifespan ─────────────────────────────────────────
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup / shutdown hooks."""
@@ -77,11 +78,13 @@ app = FastAPI(
 # ── Mount routers ────────────────────────────────────────────────
 from api.slack_handler import router as slack_router  # noqa: E402
 from api.status import router as status_router  # noqa: E402
+
 app.include_router(slack_router)
 app.include_router(status_router)
 
 
 # ── Signature verification ───────────────────────────────────────
+
 
 def _verify_signature(payload_body: bytes, secret: str, signature_header: str) -> bool:
     """
@@ -105,6 +108,7 @@ def _verify_signature(payload_body: bytes, secret: str, signature_header: str) -
 
 # ── Health check ─────────────────────────────────────────────────
 
+
 @app.get("/health", tags=["ops"])
 async def health():
     """Liveness probe for container orchestrators."""
@@ -112,6 +116,7 @@ async def health():
 
 
 # ── Webhook endpoint ────────────────────────────────────────────
+
 
 @app.post(
     "/webhook/github",
@@ -135,7 +140,9 @@ async def receive_github_webhook(
     raw_body: bytes = await request.body()
 
     # ── Step 1: Signature verification ───────────────────────
-    if not _verify_signature(raw_body, settings.GITHUB_WEBHOOK_SECRET, x_hub_signature_256 or ""):
+    if not _verify_signature(
+        raw_body, settings.GITHUB_WEBHOOK_SECRET, x_hub_signature_256 or ""
+    ):
         logger.warning("Invalid webhook signature — rejecting payload")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -155,7 +162,11 @@ async def receive_github_webhook(
     event_type = x_github_event or ""
     if event_type != "workflow_run":
         logger.debug("Ignoring event type: %s", event_type)
-        return {"status": "ok", "action": "ignored", "reason": f"event_type={event_type}"}
+        return {
+            "status": "ok",
+            "action": "ignored",
+            "reason": f"event_type={event_type}",
+        }
 
     # ── Step 4: Conclusion filtering ─────────────────────────
     action = payload.get("action", "")
@@ -168,7 +179,11 @@ async def receive_github_webhook(
             action,
             conclusion,
         )
-        return {"status": "ok", "action": "ignored", "reason": f"conclusion={conclusion}"}
+        return {
+            "status": "ok",
+            "action": "ignored",
+            "reason": f"conclusion={conclusion}",
+        }
 
     # ── Step 5: Build normalised event ───────────────────────
     repo = payload.get("repository", {})

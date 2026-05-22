@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Any, Optional
+from typing import Any
 
 from config.settings import get_settings
 
@@ -112,6 +112,7 @@ async def get_cloud_context(
 #  GCP Cloud Logging
 # ═════════════════════════════════════════════════════════════════
 
+
 async def _query_gcp_logs(
     project_id: str,
     repo: str,
@@ -131,7 +132,7 @@ async def _query_gcp_logs(
 
     # Build the filter
     # Scope to ERROR/CRITICAL severity in the time window
-    service_name = repo.split("/")[-1] if "/" in repo else repo
+    repo.split("/")[-1] if "/" in repo else repo
     log_filter = (
         f'severity >= "ERROR" '
         f'AND timestamp >= "{start.isoformat()}" '
@@ -160,25 +161,56 @@ async def _query_gcp_logs(
         # Classify the log entry
         msg_lower = message.lower()
 
-        if any(kw in msg_lower for kw in [
-            "connection refused", "connection reset", "database",
-            "postgresql", "mysql", "mongodb", "redis timeout",
-            "sqlalchemy", "deadlock", "lock timeout",
-        ]):
+        if any(
+            kw in msg_lower
+            for kw in [
+                "connection refused",
+                "connection reset",
+                "database",
+                "postgresql",
+                "mysql",
+                "mongodb",
+                "redis timeout",
+                "sqlalchemy",
+                "deadlock",
+                "lock timeout",
+            ]
+        ):
             db_errors.append(f"[{severity}] {message[:300]}")
 
-        elif any(kw in msg_lower for kw in [
-            "oom", "out of memory", "memory", "oomkilled",
-            "killed process", "memory pressure", "heap",
-            "gc overhead", "allocation failed",
-        ]):
+        elif any(
+            kw in msg_lower
+            for kw in [
+                "oom",
+                "out of memory",
+                "memory",
+                "oomkilled",
+                "killed process",
+                "memory pressure",
+                "heap",
+                "gc overhead",
+                "allocation failed",
+            ]
+        ):
             memory_events.append(f"[{severity}] {message[:300]}")
 
-        elif any(kw in msg_lower for kw in [
-            "network", "dns", "timeout", "connection timed out",
-            "unreachable", "socket", "ssl", "certificate",
-            "502", "503", "504", "gateway",
-        ]):
+        elif any(
+            kw in msg_lower
+            for kw in [
+                "network",
+                "dns",
+                "timeout",
+                "connection timed out",
+                "unreachable",
+                "socket",
+                "ssl",
+                "certificate",
+                "502",
+                "503",
+                "504",
+                "gateway",
+            ]
+        ):
             network_anomalies.append(f"[{severity}] {message[:300]}")
 
     # Build summary
@@ -190,9 +222,8 @@ async def _query_gcp_logs(
     if network_anomalies:
         parts.append(f"{len(network_anomalies)} network anomalies")
 
-    summary = (
-        f"GCP Cloud Logging: {raw_count} ERROR/CRITICAL entries found. "
-        + (", ".join(parts) if parts else "No categorised issues detected.")
+    summary = f"GCP Cloud Logging: {raw_count} ERROR/CRITICAL entries found. " + (
+        ", ".join(parts) if parts else "No categorised issues detected."
     )
 
     return {
@@ -208,6 +239,7 @@ async def _query_gcp_logs(
 # ═════════════════════════════════════════════════════════════════
 #  AWS CloudWatch
 # ═════════════════════════════════════════════════════════════════
+
 
 async def _query_aws_cloudwatch(
     region: str,
@@ -230,7 +262,7 @@ async def _query_aws_cloudwatch(
     query = (
         "fields @timestamp, @message, @logStream "
         "| filter @message like /(?i)(error|fatal|exception|oom|timeout|refused)/ "
-        f"| sort @timestamp desc "
+        "| sort @timestamp desc "
         "| limit 200"
     )
 
@@ -248,6 +280,7 @@ async def _query_aws_cloudwatch(
 
     # Poll for results (CloudWatch Insights is async)
     import asyncio
+
     results = None
     for _ in range(30):  # max 30 seconds
         result_response = client.get_query_results(queryId=query_id)
@@ -273,21 +306,43 @@ async def _query_aws_cloudwatch(
 
         msg_lower = message.lower()
 
-        if any(kw in msg_lower for kw in [
-            "database", "rds", "connection refused", "deadlock",
-            "postgresql", "mysql", "dynamodb",
-        ]):
+        if any(
+            kw in msg_lower
+            for kw in [
+                "database",
+                "rds",
+                "connection refused",
+                "deadlock",
+                "postgresql",
+                "mysql",
+                "dynamodb",
+            ]
+        ):
             db_errors.append(message[:300])
 
-        elif any(kw in msg_lower for kw in [
-            "oom", "out of memory", "memory", "killed",
-        ]):
+        elif any(
+            kw in msg_lower
+            for kw in [
+                "oom",
+                "out of memory",
+                "memory",
+                "killed",
+            ]
+        ):
             memory_events.append(message[:300])
 
-        elif any(kw in msg_lower for kw in [
-            "timeout", "network", "unreachable", "dns",
-            "502", "503", "504",
-        ]):
+        elif any(
+            kw in msg_lower
+            for kw in [
+                "timeout",
+                "network",
+                "unreachable",
+                "dns",
+                "502",
+                "503",
+                "504",
+            ]
+        ):
             network_anomalies.append(message[:300])
 
     parts: list[str] = []
@@ -298,9 +353,8 @@ async def _query_aws_cloudwatch(
     if network_anomalies:
         parts.append(f"{len(network_anomalies)} network anomalies")
 
-    summary = (
-        f"AWS CloudWatch: {len(results)} log entries found. "
-        + (", ".join(parts) if parts else "No categorised issues detected.")
+    summary = f"AWS CloudWatch: {len(results)} log entries found. " + (
+        ", ".join(parts) if parts else "No categorised issues detected."
     )
 
     return {

@@ -2,10 +2,21 @@
 Tests for agents/fix_generator.py — keyword extraction, auto-fix policy,
 and LLM proposal generation.
 """
+
 import pytest
 from unittest.mock import patch, MagicMock, AsyncMock
-from api.models import DiagnosisResult, FixProposal, PipelineFailureEvent, RiskLevel, RootCauseCategory
-from agents.fix_generator import should_auto_apply, _extract_keywords, generate_fix_proposals
+from api.models import (
+    DiagnosisResult,
+    FixProposal,
+    PipelineFailureEvent,
+    RiskLevel,
+    RootCauseCategory,
+)
+from agents.fix_generator import (
+    should_auto_apply,
+    _extract_keywords,
+    generate_fix_proposals,
+)
 
 
 def test_extract_keywords():
@@ -44,13 +55,13 @@ def test_should_auto_apply_rules():
         root_cause_category=RootCauseCategory.FLAKY_TEST,
         confidence=0.85,
         explanation="Test is flaky",
-        contributing_factors=[]
+        contributing_factors=[],
     )
     fix_success = FixProposal(
         description="Retry the failed jobs",
         commands=["retry"],
         risk_level=RiskLevel.LOW,
-        success_probability=0.75
+        success_probability=0.75,
     )
     assert should_auto_apply(diag_success, fix_success) is True
 
@@ -59,7 +70,7 @@ def test_should_auto_apply_rules():
         description="Modify test parameters",
         commands=["modify"],
         risk_level=RiskLevel.MEDIUM,
-        success_probability=0.80
+        success_probability=0.80,
     )
     assert should_auto_apply(diag_success, fix_medium_risk) is False
 
@@ -70,7 +81,7 @@ def test_should_auto_apply_rules():
         root_cause_category=RootCauseCategory.FLAKY_TEST,
         confidence=0.75,
         explanation="Test is flaky",
-        contributing_factors=[]
+        contributing_factors=[],
     )
     assert should_auto_apply(diag_low_confidence, fix_success) is False
 
@@ -81,7 +92,7 @@ def test_should_auto_apply_rules():
         root_cause_category=RootCauseCategory.DEPENDENCY_ISSUE,
         confidence=0.90,
         explanation="Dependency is missing",
-        contributing_factors=[]
+        contributing_factors=[],
     )
     assert should_auto_apply(diag_not_whitelisted, fix_success) is False
 
@@ -90,7 +101,9 @@ def test_should_auto_apply_rules():
 @patch("agents.fix_generator.anthropic.AsyncAnthropic")
 @patch("agents.fix_generator.query_fix_history")
 @patch("agents.fix_generator.get_settings")
-async def test_generate_fix_proposals(mock_get_settings, mock_query_history, mock_anthropic_class):
+async def test_generate_fix_proposals(
+    mock_get_settings, mock_query_history, mock_anthropic_class
+):
     # Mock settings
     mock_settings = MagicMock()
     mock_settings.ANTHROPIC_API_KEY = "test_key"
@@ -108,7 +121,7 @@ async def test_generate_fix_proposals(mock_get_settings, mock_query_history, moc
             "repo": "test/repo",
             "error_message": "flaky test",
             "root_cause_category": "flaky_test",
-            "created_at": "2026-05-20"
+            "created_at": "2026-05-20",
         }
     ]
 
@@ -117,7 +130,11 @@ async def test_generate_fix_proposals(mock_get_settings, mock_query_history, moc
     mock_anthropic_class.return_value = mock_client
 
     mock_response = MagicMock()
-    mock_response.content = [MagicMock(text='[{"description": "Retry pipeline", "commands": ["retry"], "file_patches": null, "risk_level": "LOW", "success_probability": 0.95}]')]
+    mock_response.content = [
+        MagicMock(
+            text='[{"description": "Retry pipeline", "commands": ["retry"], "file_patches": null, "risk_level": "LOW", "success_probability": 0.95}]'
+        )
+    ]
     mock_client.messages.create.return_value = mock_response
 
     event = PipelineFailureEvent(
@@ -125,14 +142,14 @@ async def test_generate_fix_proposals(mock_get_settings, mock_query_history, moc
         repo_full_name="test/repo",
         branch="main",
         commit_sha="sha",
-        workflow_name="ci.yml"
+        workflow_name="ci.yml",
     )
     diag = DiagnosisResult(
         failure_step="step",
         error_message="err",
         root_cause_category=RootCauseCategory.FLAKY_TEST,
         confidence=0.8,
-        explanation="expl"
+        explanation="expl",
     )
 
     proposals = await generate_fix_proposals(event, diag)

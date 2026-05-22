@@ -18,7 +18,6 @@ import logging
 from typing import Any
 
 import anthropic
-from sqlalchemy import func, text
 
 from api.models import (
     DiagnosisResult,
@@ -46,6 +45,7 @@ AUTO_FIX_WHITELIST: set[str] = {
 # ═════════════════════════════════════════════════════════════════
 #  History Query Tool
 # ═════════════════════════════════════════════════════════════════
+
 
 def query_fix_history(
     root_cause_category: str,
@@ -96,12 +96,9 @@ def query_fix_history(
             # Search across all categories for similar error messages
             error_keywords = _extract_keywords(error_message)
             if error_keywords:
-                broader_query = (
-                    session.query(FixHistoryRecord)
-                    .filter(
-                        FixHistoryRecord.fix_applied.isnot(None),
-                        FixHistoryRecord.root_cause_category != root_cause_category,
-                    )
+                broader_query = session.query(FixHistoryRecord).filter(
+                    FixHistoryRecord.fix_applied.isnot(None),
+                    FixHistoryRecord.root_cause_category != root_cause_category,
                 )
                 # Add keyword filters
                 for keyword in error_keywords[:3]:
@@ -109,8 +106,7 @@ def query_fix_history(
                         FixHistoryRecord.error_message.ilike(f"%{keyword}%")
                     )
                 broader_results = (
-                    broader_query
-                    .order_by(FixHistoryRecord.created_at.desc())
+                    broader_query.order_by(FixHistoryRecord.created_at.desc())
                     .limit(limit - len(records))
                     .all()
                 )
@@ -118,24 +114,31 @@ def query_fix_history(
 
         results = []
         for record in records:
-            results.append({
-                "fix_applied": record.fix_applied,
-                "fix_commands": (
-                    json.loads(record.fix_commands)
-                    if record.fix_commands else []
-                ),
-                "fix_outcome": record.fix_outcome.value if hasattr(record.fix_outcome, 'value') else str(record.fix_outcome),
-                "confidence": record.confidence,
-                "risk_level": record.risk_level,
-                "repo": record.repo,
-                "error_message": (record.error_message or "")[:200],
-                "root_cause_category": record.root_cause_category,
-                "created_at": record.created_at.isoformat() if record.created_at else None,
-            })
+            results.append(
+                {
+                    "fix_applied": record.fix_applied,
+                    "fix_commands": (
+                        json.loads(record.fix_commands) if record.fix_commands else []
+                    ),
+                    "fix_outcome": record.fix_outcome.value
+                    if hasattr(record.fix_outcome, "value")
+                    else str(record.fix_outcome),
+                    "confidence": record.confidence,
+                    "risk_level": record.risk_level,
+                    "repo": record.repo,
+                    "error_message": (record.error_message or "")[:200],
+                    "root_cause_category": record.root_cause_category,
+                    "created_at": record.created_at.isoformat()
+                    if record.created_at
+                    else None,
+                }
+            )
 
         logger.info(
             "Fix history query — category=%s found=%d (limit=%d)",
-            root_cause_category, len(results), limit,
+            root_cause_category,
+            len(results),
+            limit,
         )
         return results
 
@@ -150,13 +153,34 @@ def _extract_keywords(error_message: str) -> list[str]:
     """Extract meaningful keywords from an error message for fuzzy matching."""
     # Remove common noise words
     noise = {
-        "error", "failed", "failure", "the", "a", "an", "is", "was",
-        "in", "at", "on", "to", "for", "of", "with", "from", "and",
-        "not", "no", "could", "cannot", "unable", "found",
+        "error",
+        "failed",
+        "failure",
+        "the",
+        "a",
+        "an",
+        "is",
+        "was",
+        "in",
+        "at",
+        "on",
+        "to",
+        "for",
+        "of",
+        "with",
+        "from",
+        "and",
+        "not",
+        "no",
+        "could",
+        "cannot",
+        "unable",
+        "found",
     }
     words = error_message.lower().split()
     keywords = [
-        w.strip(".,;:!?\"'()[]{}") for w in words
+        w.strip(".,;:!?\"'()[]{}")
+        for w in words
         if len(w) > 3 and w.lower() not in noise
     ]
     return keywords[:5]
@@ -312,6 +336,7 @@ async def generate_fix_proposals(
 #  Auto-fix Policy
 # ═════════════════════════════════════════════════════════════════
 
+
 def should_auto_apply(
     diagnosis: DiagnosisResult,
     fix: FixProposal,
@@ -339,8 +364,11 @@ def should_auto_apply(
     logger.info(
         "Auto-fix policy — category=%s whitelisted=%s risk=%s "
         "confidence=%.0f%% probability=%.0f%% → %s",
-        category, is_whitelisted, fix.risk_level.value,
-        diagnosis.confidence * 100, fix.success_probability * 100,
+        category,
+        is_whitelisted,
+        fix.risk_level.value,
+        diagnosis.confidence * 100,
+        fix.success_probability * 100,
         "AUTO_APPLY" if decision else "NEEDS_APPROVAL",
     )
 
