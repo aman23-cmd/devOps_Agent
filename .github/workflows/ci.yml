@@ -73,7 +73,7 @@ jobs:
           SLACK_CHANNEL_ID: C12345
           REDIS_URL: redis://localhost:6379/0
           DATABASE_URL: postgresql://devops:devops@localhost/devops
-        run: pytest tests/ -v --tb=short
+        run: PYTHONPATH=. pytest tests/ -v --tb=short
 
   # ── Docker Build & Push ──────────────────────────────────────
   docker:
