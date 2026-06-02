@@ -155,6 +155,18 @@ document.addEventListener('DOMContentLoaded', () => {
         demoBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Simulating...';
         demoBtn.disabled = true;
 
+        // Reset Graph
+        document.getElementById('workflow-section').style.display = 'block';
+        const statusText = document.getElementById('workflow-status-text');
+        statusText.textContent = 'Event received, starting pipeline...';
+        statusText.style.color = 'var(--text-primary)';
+        
+        const nodes = ['node-webhook', 'node-agent', 'node-fix', 'node-git', 'node-slack'];
+        const edges = ['edge-1', 'edge-2', 'edge-3a', 'edge-3b'];
+        
+        nodes.forEach(n => document.getElementById(n).className = 'wf-node ' + (n.includes('split') ? (n.includes('top') ? 'wf-split-top' : 'wf-split-bottom') : ''));
+        edges.forEach(e => document.getElementById(e).className = 'wf-edge ' + (e.includes('3a') ? 'split-edge-top' : (e.includes('3b') ? 'split-edge-bottom' : '')));
+
         const newRecord = {
             id: Math.random().toString(36).substring(7),
             repo_name: 'aman23-cmd/devOps_Agent',
@@ -171,8 +183,45 @@ document.addEventListener('DOMContentLoaded', () => {
         updateTable(demoRecords);
         updateLastUpdated();
 
-        // Simulate agent thinking and resolving after 3 seconds
+        // ── Node 1: Webhook ──
+        document.getElementById('node-webhook').classList.add('active');
+        
         setTimeout(() => {
+            document.getElementById('node-webhook').classList.replace('active', 'completed');
+            document.getElementById('edge-1').classList.add('active');
+            document.getElementById('node-agent').classList.add('active');
+            statusText.textContent = 'Agent diagnosing root cause...';
+        }, 1000);
+
+        setTimeout(() => {
+            document.getElementById('node-agent').classList.replace('active', 'completed');
+            document.getElementById('edge-2').classList.add('active');
+            document.getElementById('node-fix').classList.add('active');
+            statusText.textContent = 'Generating code patch...';
+            
+            // Update table mid-flight
+            demoRecords[0].confidence_score = 0.6;
+            demoRecords[0].action_taken = 'Drafting fix...';
+            updateTable(demoRecords);
+        }, 2500);
+
+        setTimeout(() => {
+            document.getElementById('node-fix').classList.replace('active', 'completed');
+            document.getElementById('edge-3a').classList.add('active');
+            document.getElementById('edge-3b').classList.add('active');
+            document.getElementById('node-git').classList.add('active');
+            document.getElementById('node-slack').classList.add('active');
+            statusText.textContent = 'Committing code and notifying Slack...';
+        }, 4000);
+
+        // Final Resolution
+        setTimeout(() => {
+            document.getElementById('node-git').classList.replace('active', 'completed');
+            document.getElementById('node-slack').classList.replace('active', 'completed');
+            
+            statusText.textContent = 'Pipeline fixed successfully!';
+            statusText.style.color = 'var(--success)';
+
             newRecord.confidence_score = 0.92;
             newRecord.action_taken = 'Auto-applied patch for syntax error in worker.py';
             newRecord.fix_status = 'auto_applied';
@@ -190,7 +239,12 @@ document.addEventListener('DOMContentLoaded', () => {
             
             demoBtn.innerHTML = '<i class="fa-solid fa-play"></i> Run Demo Simulation';
             demoBtn.disabled = false;
-        }, 4000);
+            
+            // Stop edge flow animation after a while
+            setTimeout(() => {
+                edges.forEach(e => document.getElementById(e).classList.remove('active'));
+            }, 2000);
+        }, 5500);
     }
 
     // Event Listeners

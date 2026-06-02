@@ -76,6 +76,48 @@
                 </div>
             </section>
 
+            <!-- Workflow Graph Section (n8n Style) -->
+            <section class="workflow-section" id="workflow-section" style="display: none;">
+                <div class="section-header">
+                    <h2>Live Execution Graph</h2>
+                    <span class="workflow-status" id="workflow-status-text">Waiting for event...</span>
+                </div>
+                <div class="workflow-canvas">
+                    <!-- Nodes & Edges -->
+                    <div class="wf-node" id="node-webhook">
+                        <div class="wf-node-icon"><i class="fa-brands fa-github"></i></div>
+                        <div class="wf-node-title">GitHub Webhook</div>
+                    </div>
+                    
+                    <div class="wf-edge" id="edge-1"></div>
+
+                    <div class="wf-node" id="node-agent">
+                        <div class="wf-node-icon purple"><i class="fa-solid fa-brain"></i></div>
+                        <div class="wf-node-title">Agent Diagnosis</div>
+                    </div>
+
+                    <div class="wf-edge" id="edge-2"></div>
+
+                    <div class="wf-node" id="node-fix">
+                        <div class="wf-node-icon blue"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+                        <div class="wf-node-title">Auto-Fix Generation</div>
+                    </div>
+
+                    <div class="wf-edge split-edge-top" id="edge-3a"></div>
+                    <div class="wf-edge split-edge-bottom" id="edge-3b"></div>
+
+                    <div class="wf-node wf-split-top" id="node-git">
+                        <div class="wf-node-icon orange"><i class="fa-solid fa-code-commit"></i></div>
+                        <div class="wf-node-title">Commit & Push</div>
+                    </div>
+
+                    <div class="wf-node wf-split-bottom" id="node-slack">
+                        <div class="wf-node-icon green"><i class="fa-brands fa-slack"></i></div>
+                        <div class="wf-node-title">Slack Alert</div>
+                    </div>
+                </div>
+            </section>
+
             <!-- Main Table Section -->
             <section class="table-section">
                 <div class="section-header">
