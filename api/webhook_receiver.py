@@ -57,9 +57,12 @@ async def lifespan(app: FastAPI):
     logger.info("Webhook receiver starting — env=%s", settings.ENVIRONMENT)
 
     # Warm up the Redis connection
-    r = await _get_redis(settings)
-    await r.ping()
-    logger.info("Redis connection verified ✓")
+    try:
+        r = await _get_redis(settings)
+        await r.ping()
+        logger.info("Redis connection verified ✓")
+    except Exception as e:
+        logger.warning(f"Could not connect to Redis during startup (is it running?): {e}")
 
     yield  # ← application is running
 

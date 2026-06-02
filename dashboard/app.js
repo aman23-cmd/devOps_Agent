@@ -7,12 +7,24 @@ document.addEventListener('DOMContentLoaded', () => {
     const tableBody = document.getElementById('table-body');
     const lastUpdated = document.getElementById('last-updated-time');
     const refreshBtn = document.getElementById('refresh-btn');
+    const demoBtn = document.getElementById('demo-btn');
+
+    let isDemoMode = false;
+    let demoRecords = [];
+    let demoMetrics = {
+        total_fixes: 0,
+        successful_fixes: 0,
+        auto_applied_fixes: 0,
+        avg_duration_seconds: 0
+    };
 
     // Base API URL (assuming the frontend is served by the FastAPI app on the same origin)
     const API_BASE = window.location.origin;
 
     // Fetch Dashboard Data
     async function fetchDashboardData() {
+        if (isDemoMode) return; // Skip real fetching if in demo mode
+        
         try {
             updateLastUpdated();
             
@@ -31,12 +43,19 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             console.error('Error fetching dashboard data:', error);
-            // Don't show an aggressive error, just let it retry silently
         }
     }
 
     function updateMetrics(analytics) {
-        if (!analytics || analytics.error) return;
+        if (!analytics || analytics.error) {
+            if (!isDemoMode) {
+                metricTotalFixes.textContent = "-";
+                metricSuccessRate.textContent = "-";
+                metricAutoApplied.textContent = "-";
+                metricAvgDuration.textContent = "-";
+            }
+            return;
+        }
 
         const total = analytics.total_fixes || 0;
         const success = analytics.successful_fixes || 0;
@@ -56,7 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateTable(records) {
         if (!records || records.length === 0) {
-            tableBody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted);">No pipeline failures recorded yet.</td></tr>`;
+            tableBody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted);">No pipeline failures recorded yet. (Click 'Run Demo Simulation' to see it in action!)</td></tr>`;
             return;
         }
 
@@ -67,7 +86,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Format time
             const date = new Date(record.created_at);
-            const timeString = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const timeString = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
             
             // Format status
             let statusClass = 'status-pending';
@@ -114,7 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="confidence-fill" style="width: ${confidence * 100}%; background: ${confidenceColor}"></div>
                     </div>
                 </td>
-                <td>${record.action_taken ? record.action_taken.substring(0, 30) + '...' : 'Analyzing...'}</td>
+                <td>${record.action_taken ? record.action_taken.substring(0, 35) + '...' : 'Agent analyzing codebase...'}</td>
                 <td>${record.fix_duration_seconds ? record.fix_duration_seconds.toFixed(1) + 's' : '-'}</td>
                 <td>
                     <span class="status-indicator-dot ${statusClass}">${statusText}</span>
@@ -130,8 +149,53 @@ document.addEventListener('DOMContentLoaded', () => {
         lastUpdated.textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     }
 
+    // --- DEMO SIMULATION LOGIC ---
+    function runDemoSimulation() {
+        isDemoMode = true;
+        demoBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Simulating...';
+        demoBtn.disabled = true;
+
+        const newRecord = {
+            id: Math.random().toString(36).substring(7),
+            repo_name: 'aman23-cmd/devOps_Agent',
+            category: 'code_regression',
+            confidence_score: 0.2, // Starts low, agent is thinking
+            action_taken: 'Reading pytest logs...',
+            fix_status: 'requires_review', // Pending
+            fix_duration_seconds: null,
+            created_at: new Date().toISOString()
+        };
+
+        // Add to front of demo list
+        demoRecords.unshift(newRecord);
+        updateTable(demoRecords);
+        updateLastUpdated();
+
+        // Simulate agent thinking and resolving after 3 seconds
+        setTimeout(() => {
+            newRecord.confidence_score = 0.92;
+            newRecord.action_taken = 'Auto-applied patch for syntax error in worker.py';
+            newRecord.fix_status = 'auto_applied';
+            newRecord.fix_duration_seconds = 4.2;
+            
+            // Update metrics
+            demoMetrics.total_fixes += 1;
+            demoMetrics.successful_fixes += 1;
+            demoMetrics.auto_applied_fixes += 1;
+            demoMetrics.avg_duration_seconds = 4.2;
+
+            updateTable(demoRecords);
+            updateMetrics(demoMetrics);
+            updateLastUpdated();
+            
+            demoBtn.innerHTML = '<i class="fa-solid fa-play"></i> Run Demo Simulation';
+            demoBtn.disabled = false;
+        }, 4000);
+    }
+
     // Event Listeners
     refreshBtn.addEventListener('click', () => {
+        isDemoMode = false; // Turn off demo mode
         const icon = refreshBtn.querySelector('i');
         icon.classList.add('fa-spin');
         fetchDashboardData().finally(() => {
@@ -139,9 +203,15 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    if (demoBtn) {
+        demoBtn.addEventListener('click', runDemoSimulation);
+    }
+
     // Initial Fetch
     fetchDashboardData();
 
     // Auto-refresh every 10 seconds
-    setInterval(fetchDashboardData, 10000);
+    setInterval(() => {
+        if (!isDemoMode) fetchDashboardData();
+    }, 10000);
 });
