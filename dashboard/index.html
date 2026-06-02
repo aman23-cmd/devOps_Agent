@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DevOps Pipeline Agent - Live Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo">
+                <i class="fa-solid fa-robot"></i>
+                <span>DevOps Agent</span>
+            </div>
+            <nav>
+                <a href="#" class="active"><i class="fa-solid fa-chart-line"></i> Dashboard</a>
+                <a href="#"><i class="fa-solid fa-history"></i> Fix History</a>
+                <a href="#"><i class="fa-solid fa-gear"></i> Settings</a>
+            </nav>
+            <div class="status-indicator">
+                <div class="pulse-ring"></div>
+                <div class="pulse-circle"></div>
+                <span>Agent Online</span>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header>
+                <div class="header-left">
+                    <h1>Live Analytics</h1>
+                    <p class="subtitle">Autonomous DevOps Pipeline Agent Monitoring</p>
+                </div>
+                <div class="header-right">
+                    <div class="last-updated">
+                        <i class="fa-regular fa-clock"></i> Last updated: <span id="last-updated-time">Just now</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Metrics Cards -->
+            <section class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-icon blue"><i class="fa-solid fa-bug"></i></div>
+                    <div class="metric-details">
+                        <h3>Total Fixes Attempted</h3>
+                        <div class="metric-value" id="metric-total-fixes">0</div>
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-icon green"><i class="fa-solid fa-check-circle"></i></div>
+                    <div class="metric-details">
+                        <h3>Success Rate</h3>
+                        <div class="metric-value" id="metric-success-rate">0%</div>
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-icon purple"><i class="fa-solid fa-stopwatch"></i></div>
+                    <div class="metric-details">
+                        <h3>Avg Fix Duration</h3>
+                        <div class="metric-value" id="metric-avg-duration">0s</div>
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-icon orange"><i class="fa-solid fa-bolt"></i></div>
+                    <div class="metric-details">
+                        <h3>Auto-Applied Fixes</h3>
+                        <div class="metric-value" id="metric-auto-applied">0</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Main Table Section -->
+            <section class="table-section">
+                <div class="section-header">
+                    <h2>Recent Interventions</h2>
+                    <button id="refresh-btn" class="btn-refresh"><i class="fa-solid fa-rotate-right"></i> Refresh</button>
+                </div>
+                
+                <div class="table-container">
+                    <table id="activity-table">
+                        <thead>
+                            <tr>
+                                <th>Repository</th>
+                                <th>Root Cause</th>
+                                <th>Confidence</th>
+                                <th>Action Taken</th>
+                                <th>Duration</th>
+                                <th>Status</th>
+                                <th>Time</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-body">
+                            <!-- Rows will be populated by JS -->
+                            <tr class="loading-row">
+                                <td colspan="7"><div class="spinner"></div> Loading data...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

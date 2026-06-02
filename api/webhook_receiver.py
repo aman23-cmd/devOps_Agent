@@ -19,8 +19,10 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import Any
 
+import os
 import redis.asyncio as aioredis
 from fastapi import FastAPI, Header, HTTPException, Request, status
+from fastapi.staticfiles import StaticFiles
 
 from api.models import PipelineFailureEvent
 from config.settings import Settings, get_settings
@@ -81,6 +83,11 @@ from api.status import router as status_router  # noqa: E402
 
 app.include_router(slack_router)
 app.include_router(status_router)
+
+# Mount dashboard static files
+dashboard_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "dashboard")
+if os.path.exists(dashboard_path):
+    app.mount("/dashboard", StaticFiles(directory=dashboard_path, html=True), name="dashboard")
 
 
 # ── Signature verification ───────────────────────────────────────
