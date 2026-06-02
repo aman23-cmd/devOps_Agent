@@ -62,7 +62,9 @@ async def lifespan(app: FastAPI):
         await r.ping()
         logger.info("Redis connection verified ✓")
     except Exception as e:
-        logger.warning(f"Could not connect to Redis during startup (is it running?): {e}")
+        logger.warning(
+            f"Could not connect to Redis during startup (is it running?): {e}"
+        )
 
     yield  # ← application is running
 
@@ -90,7 +92,9 @@ app.include_router(status_router)
 # Mount dashboard static files
 dashboard_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "dashboard")
 if os.path.exists(dashboard_path):
-    app.mount("/dashboard", StaticFiles(directory=dashboard_path, html=True), name="dashboard")
+    app.mount(
+        "/dashboard", StaticFiles(directory=dashboard_path, html=True), name="dashboard"
+    )
 
 
 # ── Signature verification ───────────────────────────────────────
