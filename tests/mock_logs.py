@@ -2,13 +2,14 @@
 Mock GitHub Actions log generator for testing the Diagnosis Agent.
 """
 
+
 def generate_mock_log(failure_category: str) -> str:
     """
     Returns realistic GitHub Actions log text for each failure category.
     Timestamps and step names simulate actual workflow output.
     """
     base_timestamp = "2026-05-25T10:15:"
-    
+
     logs = {
         "flaky_test": f"""
 {base_timestamp}01.123Z Run npm test
@@ -144,7 +145,7 @@ def generate_mock_log(failure_category: str) -> str:
 {base_timestamp}02.000Z Starting deployment...
 {base_timestamp}03.000Z Failed.
 {base_timestamp}04.000Z Error: Process completed with exit code 1.
-"""
+""",
     }
-    
+
     return logs.get(failure_category.lower(), logs["unknown"])

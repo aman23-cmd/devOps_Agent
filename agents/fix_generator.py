@@ -120,17 +120,19 @@ def query_fix_history(
                     "fix_commands": (
                         json.loads(record.fix_commands) if record.fix_commands else []
                     ),
-                    "fix_outcome": record.fix_outcome.value
-                    if hasattr(record.fix_outcome, "value")
-                    else str(record.fix_outcome),
+                    "fix_outcome": (
+                        record.fix_outcome.value
+                        if hasattr(record.fix_outcome, "value")
+                        else str(record.fix_outcome)
+                    ),
                     "confidence": record.confidence,
                     "risk_level": record.risk_level,
                     "repo": record.repo,
                     "error_message": (record.error_message or "")[:200],
                     "root_cause_category": record.root_cause_category,
-                    "created_at": record.created_at.isoformat()
-                    if record.created_at
-                    else None,
+                    "created_at": (
+                        record.created_at.isoformat() if record.created_at else None
+                    ),
                 }
             )
 

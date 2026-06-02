@@ -232,9 +232,11 @@ def get_recent_records(limit: int = 20) -> list[dict]:
                 "root_cause_category": r.root_cause_category,
                 "confidence": r.confidence,
                 "fix_applied": r.fix_applied,
-                "fix_outcome": r.fix_outcome.value
-                if hasattr(r.fix_outcome, "value")
-                else str(r.fix_outcome),
+                "fix_outcome": (
+                    r.fix_outcome.value
+                    if hasattr(r.fix_outcome, "value")
+                    else str(r.fix_outcome)
+                ),
                 "risk_level": r.risk_level,
                 "fix_method": r.fix_method,
                 "auto_applied": r.auto_applied,

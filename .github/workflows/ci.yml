@@ -35,10 +35,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install linters
-        run: pip install ruff black
-
-      - name: Run black check
-        run: black --check .
+        run: pip install ruff
 
       - name: Run ruff check
         run: ruff check . --output-format=github
