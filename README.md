@@ -60,7 +60,16 @@ cp .env.example .env
 ```
 *(Make sure to add your `GITHUB_TOKEN`, `SLACK_BOT_TOKEN`, and `ANTHROPIC_API_KEY`)*
 
-### 3. Run with Docker Compose (Recommended)
+### 3. GitHub Webhook Setup
+
+For the agent to receive events, you must configure a Webhook in your GitHub repository:
+1. Go to your GitHub Repository ➔ **Settings** ➔ **Webhooks** ➔ **Add webhook**.
+2. **Payload URL:** Your server's URL (e.g., `https://your-domain.com/webhook/github`). *If testing locally, use [ngrok](https://ngrok.com/) to expose port 8000.*
+3. **Content type:** `application/json`
+4. **Secret:** The same secret you set as `GITHUB_WEBHOOK_SECRET` in your `.env` file.
+5. **Events:** Select "Let me select individual events" and check **Workflow runs**.
+
+### 4. Run with Docker Compose (Recommended)
 
 Start the entire stack (API, Worker, Redis, PostgreSQL):
 
