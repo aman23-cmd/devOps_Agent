@@ -1,0 +1,4 @@
+{
+  "expected_category": "infrastructure_failure",
+  "log": "\n2026-05-25T10:15:01.123Z Run setup-node\n2026-05-25T10:15:02.000Z Current runner version: '2.311.0'\n2026-05-25T10:15:03.000Z Runner lost communication with the server.\n2026-05-25T10:15:04.000Z Error: The operation was canceled.\n"
+}

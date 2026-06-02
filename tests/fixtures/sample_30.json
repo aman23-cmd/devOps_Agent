@@ -1,0 +1,4 @@
+{
+  "expected_category": "code_regression",
+  "log": "\n2026-05-25T10:15:01.123Z Run go test ./...\n2026-05-25T10:15:02.000Z ?       github.com/org/repo/cmd    [no test files]\n2026-05-25T10:15:03.000Z === RUN   TestCalculateTotal\n2026-05-25T10:15:03.100Z     calculator_test.go:45: \n2026-05-25T10:15:03.200Z         \tError Trace:\t/home/runner/work/repo/repo/pkg/calc/calculator_test.go:45\n2026-05-25T10:15:03.300Z         \tError:      \tNot equal: \n2026-05-25T10:15:03.400Z         \t            \texpected: 100\n2026-05-25T10:15:03.500Z         \t            \tactual  : 0\n2026-05-25T10:15:03.600Z         \tTest:       \tTestCalculateTotal\n2026-05-25T10:15:03.700Z --- FAIL: TestCalculateTotal (0.00s)\n2026-05-25T10:15:04.000Z FAIL\n2026-05-25T10:15:04.100Z FAIL\tgithub.com/org/repo/pkg/calc\t0.123s\n2026-05-25T10:15:05.000Z Error: Process completed with exit code 1.\n"
+}

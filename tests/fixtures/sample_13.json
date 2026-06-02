@@ -1,0 +1,4 @@
+{
+  "expected_category": "unknown",
+  "log": "\n2026-05-25T10:15:01.123Z Run custom script\n2026-05-25T10:15:02.000Z Starting deployment...\n2026-05-25T10:15:03.000Z Failed.\n2026-05-25T10:15:04.000Z Error: Process completed with exit code 1.\n"
+}

@@ -1,0 +1,4 @@
+{
+  "expected_category": "network_timeout",
+  "log": "\n2026-05-25T10:15:01.123Z Run docker pull myregistry.com/myimage:latest\n2026-05-25T10:15:02.000Z latest: Pulling from myimage\n2026-05-25T10:15:17.000Z error pulling image configuration: download failed after attempts=6: dial tcp 192.168.1.100:443: connect: connection timed out\n2026-05-25T10:15:18.000Z Error: Process completed with exit code 1.\n"
+}

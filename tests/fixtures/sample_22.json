@@ -1,0 +1,4 @@
+{
+  "expected_category": "config_error",
+  "log": "\n2026-05-25T10:15:00.100Z Setting up job\n2026-05-25T10:15:00.200Z Error: .github/workflows/ci.yml: (Line: 45, Col: 14):\n2026-05-25T10:15:00.300Z Error: A sequence was not expected\n2026-05-25T10:15:00.400Z Error: .github/workflows/ci.yml: (Line: 46, Col: 14):\n2026-05-25T10:15:00.500Z Error: Unexpected value 'run'\n2026-05-25T10:15:00.600Z Error: GitHub Actions encountered a YAML syntax error in the workflow file.\n"
+}
