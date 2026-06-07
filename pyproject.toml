@@ -37,7 +37,7 @@ dependencies = [
     "alembic>=1.14.0",
     "redis>=5.2.0",
     "anthropic>=0.42.0",
-    "pyautogen>=0.2.35",
+    "pyautogen==0.2.35",
     "PyGithub>=2.5.0",
     "slack-sdk>=3.34.0",
     "httpx>=0.28.0",
