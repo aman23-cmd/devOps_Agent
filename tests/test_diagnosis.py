@@ -1,8 +1,8 @@
 import pytest
 from unittest.mock import patch, MagicMock
-from api.models import RootCauseCategory
-from agents.coordinator import run_diagnosis_workflow
-from api.models import PipelineFailureEvent
+from devops_agent.api.models import RootCauseCategory
+from devops_agent.agents.coordinator import run_diagnosis_workflow
+from devops_agent.api.models import PipelineFailureEvent
 from datetime import datetime, timezone
 import json
 
@@ -65,11 +65,9 @@ def create_mock_chat_messages(category: str, confidence: float = 0.9) -> list[di
         ("FLAKY_TEST", RootCauseCategory.FLAKY_TEST),  # Test uppercase handling
     ],
 )
-@patch("agents.coordinator._create_group_chat")
-@patch("agents.coordinator._create_agents")
-async def test_diagnosis_categories(
-    mock_create_agents, mock_create_chat, category, expected_enum
-):
+@patch("devops_agent.agents.coordinator._create_group_chat")
+@patch("devops_agent.agents.coordinator._create_agents")
+async def test_diagnosis_categories(mock_create_agents, mock_create_chat, category, expected_enum):
     """Test DiagnosisAgent parses all 8 failure categories correctly with 10 variations."""
     event = get_dummy_event()
 
@@ -98,11 +96,9 @@ async def test_diagnosis_categories(
 
 
 @pytest.mark.asyncio
-@patch("agents.coordinator._create_group_chat")
-@patch("agents.coordinator._create_agents")
-async def test_diagnosis_confidence_triggers_human_review(
-    mock_create_agents, mock_create_chat
-):
+@patch("devops_agent.agents.coordinator._create_group_chat")
+@patch("devops_agent.agents.coordinator._create_agents")
+async def test_diagnosis_confidence_triggers_human_review(mock_create_agents, mock_create_chat):
     """Test that confidence < 0.80 automatically triggers human_review."""
     event = get_dummy_event()
 
@@ -128,11 +124,9 @@ async def test_diagnosis_confidence_triggers_human_review(
 
 
 @pytest.mark.asyncio
-@patch("agents.coordinator._create_group_chat")
-@patch("agents.coordinator._create_agents")
-async def test_diagnosis_high_confidence_no_human_review(
-    mock_create_agents, mock_create_chat
-):
+@patch("devops_agent.agents.coordinator._create_group_chat")
+@patch("devops_agent.agents.coordinator._create_agents")
+async def test_diagnosis_high_confidence_no_human_review(mock_create_agents, mock_create_chat):
     """Test that confidence >= 0.80 does not trigger human_review."""
     event = get_dummy_event()
 

@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 import pytest
 from pydantic import ValidationError
-from api.models import (
+from devops_agent.api.models import (
     PipelineFailureEvent,
     DiagnosisResult,
     FixProposal,

@@ -2,7 +2,7 @@
 
 import pytest
 from unittest.mock import patch, AsyncMock, MagicMock
-from agents.validator import _format_duration
+from devops_agent.agents.validator import _format_duration
 
 
 def test_format_duration():
@@ -12,10 +12,10 @@ def test_format_duration():
 
 
 @pytest.mark.asyncio
-@patch("agents.validator.get_settings")
-@patch("agents.validator.SlackNotifier")
-@patch("agents.validator.httpx.AsyncClient")
-@patch("agents.validator.get_session")
+@patch("devops_agent.agents.validator.get_settings")
+@patch("devops_agent.agents.validator.SlackNotifier")
+@patch("devops_agent.agents.validator.httpx.AsyncClient")
+@patch("devops_agent.agents.validator.get_session")
 async def test_validate_fix_success(
     mock_get_session, mock_http_cls, mock_slack_cls, mock_settings_fn
 ):
@@ -39,7 +39,9 @@ async def test_validate_fix_success(
     mock_get_session.return_value = mock_db
     mock_rec = MagicMock()
     mock_rec.fix_outcome = "pending"
-    mock_db.query.return_value.filter_by.return_value.order_by.return_value.first.return_value = mock_rec
+    mock_db.query.return_value.filter_by.return_value.order_by.return_value.first.return_value = (
+        mock_rec
+    )
 
     resp_info = MagicMock()
     resp_info.json.return_value = {"created_at": "2026-05-20T12:00:00Z"}
@@ -65,8 +67,8 @@ async def test_validate_fix_success(
 
     mock_http.get.side_effect = mock_get
 
-    from agents.fix_executor import ExecutionResult
-    from agents.validator import FixValidator
+    from devops_agent.agents.fix_executor import ExecutionResult
+    from devops_agent.agents.validator import FixValidator
 
     validator = FixValidator()
     er = ExecutionResult(
@@ -75,7 +77,7 @@ async def test_validate_fix_success(
         github_url="https://github.com/owner/repo/pull/1",
     )
 
-    with patch("agents.validator.POLL_INTERVAL_SECONDS", 0.01):
+    with patch("devops_agent.agents.validator.POLL_INTERVAL_SECONDS", 0.01):
         result = await validator.validate_fix(
             repo="owner/repo",
             branch="main",

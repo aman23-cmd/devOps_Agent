@@ -4,8 +4,8 @@ Tests for agents/fix_executor.py — retry detection, rerun API, and PR creation
 
 import pytest
 from unittest.mock import patch, AsyncMock, MagicMock
-from api.models import FixProposal, RiskLevel
-from agents.fix_executor import execute_fix, _is_retry_fix
+from devops_agent.api.models import FixProposal, RiskLevel
+from devops_agent.agents.fix_executor import execute_fix, _is_retry_fix
 
 
 def test_is_retry_fix_with_retry_description_and_retry_command():
@@ -54,8 +54,8 @@ def test_is_retry_fix_with_non_retry_commands():
 
 
 @pytest.mark.asyncio
-@patch("agents.fix_executor.httpx.AsyncClient")
-@patch("agents.fix_executor.get_settings")
+@patch("devops_agent.agents.fix_executor.httpx.AsyncClient")
+@patch("devops_agent.agents.fix_executor.get_settings")
 async def test_execute_retry_fix_success(mock_get_settings, mock_client_class):
     # Mock settings
     mock_settings = MagicMock()
@@ -77,9 +77,7 @@ async def test_execute_retry_fix_success(mock_get_settings, mock_client_class):
         success_probability=0.7,
     )
 
-    result = await execute_fix(
-        proposal, run_id=123, repo="owner/repo", base_branch="main"
-    )
+    result = await execute_fix(proposal, run_id=123, repo="owner/repo", base_branch="main")
 
     assert result.success is True
     assert result.action_taken == "rerun_failed_jobs"
@@ -95,8 +93,8 @@ async def test_execute_retry_fix_success(mock_get_settings, mock_client_class):
 
 
 @pytest.mark.asyncio
-@patch("agents.fix_executor.httpx.AsyncClient")
-@patch("agents.fix_executor.get_settings")
+@patch("devops_agent.agents.fix_executor.httpx.AsyncClient")
+@patch("devops_agent.agents.fix_executor.get_settings")
 async def test_execute_patch_fix_success(mock_get_settings, mock_client_class):
     # Mock settings
     mock_settings = MagicMock()
@@ -172,9 +170,7 @@ async def test_execute_patch_fix_success(mock_get_settings, mock_client_class):
         success_probability=0.9,
     )
 
-    result = await execute_fix(
-        proposal, run_id=123, repo="owner/repo", base_branch="main"
-    )
+    result = await execute_fix(proposal, run_id=123, repo="owner/repo", base_branch="main")
 
     assert result.success is True
     assert result.action_taken == "pr_created"

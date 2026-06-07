@@ -22,7 +22,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from config.settings import get_settings
+from devops_agent.config.settings import get_settings
 
 logger = logging.getLogger("cloud_enricher_agent")
 

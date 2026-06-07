@@ -28,7 +28,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
-from config.settings import get_settings
+from devops_agent.config.settings import get_settings
 
 logger = logging.getLogger("fix_history")
 
@@ -58,9 +58,7 @@ class FixHistoryRecord(Base):
     __tablename__ = "fix_history"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    run_id = Column(
-        Integer, nullable=False, index=True, comment="GitHub Actions run ID"
-    )
+    run_id = Column(Integer, nullable=False, index=True, comment="GitHub Actions run ID")
     repo = Column(String(256), nullable=False, index=True)
     branch = Column(String(256), nullable=True)
     commit_sha = Column(String(40), nullable=True)
@@ -73,12 +71,8 @@ class FixHistoryRecord(Base):
     explanation = Column(Text, nullable=True)
 
     # Fix
-    fix_applied = Column(
-        Text, nullable=True, comment="Description of the fix that was applied"
-    )
-    fix_commands = Column(
-        Text, nullable=True, comment="JSON array of commands executed"
-    )
+    fix_applied = Column(Text, nullable=True, comment="Description of the fix that was applied")
+    fix_commands = Column(Text, nullable=True, comment="JSON array of commands executed")
     risk_level = Column(String(16), nullable=True)
 
     # Outcome
@@ -233,9 +227,7 @@ def get_recent_records(limit: int = 20) -> list[dict]:
                 "confidence": r.confidence,
                 "fix_applied": r.fix_applied,
                 "fix_outcome": (
-                    r.fix_outcome.value
-                    if hasattr(r.fix_outcome, "value")
-                    else str(r.fix_outcome)
+                    r.fix_outcome.value if hasattr(r.fix_outcome, "value") else str(r.fix_outcome)
                 ),
                 "risk_level": r.risk_level,
                 "fix_method": r.fix_method,

@@ -22,13 +22,13 @@ from typing import Any
 from slack_sdk.web.async_client import AsyncWebClient
 from slack_sdk.errors import SlackApiError
 
-from api.models import (
+from devops_agent.api.models import (
     DiagnosisResult,
     FixProposal,
     PipelineFailureEvent,
     RiskLevel,
 )
-from config.settings import get_settings
+from devops_agent.config.settings import get_settings
 
 logger = logging.getLogger("slack_notifier")
 

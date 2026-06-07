@@ -4,7 +4,7 @@
 # ═══════════════════════════════════════════════════════════════
 
 # ── Stage 1: Builder ─────────────────────────────────────────
-FROM python:3.11-slim AS builder
+FROM python:3.12-slim AS builder
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -21,13 +21,15 @@ RUN apt-get update && \
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-COPY requirements.txt .
+# Install the package (pyproject.toml + devops_agent/)
+COPY pyproject.toml README.md requirements.txt ./
+COPY devops_agent/ ./devops_agent/
 RUN pip install --upgrade pip && \
-    pip install -r requirements.txt
+    pip install .
 
 
 # ── Stage 2: Runtime ─────────────────────────────────────────
-FROM python:3.11-slim AS runtime
+FROM python:3.12-slim AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
@@ -43,11 +45,9 @@ ENV PATH="/opt/venv/bin:$PATH"
 
 WORKDIR /app
 
-# Copy application code
-COPY agents/ ./agents/
-COPY api/ ./api/
-COPY config/ ./config/
-COPY db/ ./db/
+# Copy alembic config for migrations
+COPY alembic/ ./alembic/
+COPY alembic.ini ./
 
 # Create non-root user for security
 RUN groupadd -g 1000 devops && useradd -u 1000 -g 1000 -m devops
@@ -59,5 +59,6 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
 
 EXPOSE 8000
 
-# Default: run the webhook API
-CMD ["uvicorn", "api.webhook_receiver:app", "--host", "0.0.0.0", "--port", "8000"]
+# Default: run the webhook API via CLI
+CMD ["devops-agent", "api"]
+

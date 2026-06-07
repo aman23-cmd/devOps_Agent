@@ -24,7 +24,7 @@ from typing import Any, Optional
 
 import httpx
 
-from config.settings import get_settings
+from devops_agent.config.settings import get_settings
 
 logger = logging.getLogger("log_fetcher_agent")
 

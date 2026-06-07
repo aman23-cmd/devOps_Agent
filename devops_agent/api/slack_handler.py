@@ -20,12 +20,12 @@ import time
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, status
 
-from agents.fix_executor import ExecutionResult, execute_fix
-from agents.slack_notifier import SlackNotifier
-from agents.validator import FixValidator
-from api.models import FixProposal, RiskLevel
-from db.fix_history import FixHistoryRecord, FixOutcome, get_session
-from config.settings import get_settings
+from devops_agent.agents.fix_executor import ExecutionResult, execute_fix
+from devops_agent.agents.slack_notifier import SlackNotifier
+from devops_agent.agents.validator import FixValidator
+from devops_agent.api.models import FixProposal, RiskLevel
+from devops_agent.db.fix_history import FixHistoryRecord, FixOutcome, get_session
+from devops_agent.config.settings import get_settings
 
 logger = logging.getLogger("slack_handler")
 
@@ -352,10 +352,7 @@ async def _handle_retry_pipeline(
         if result.success:
             await notifier.send_thread_update(
                 thread_ts=message_ts,
-                message=(
-                    f"🔄 Pipeline retry triggered!\n"
-                    f"<{result.github_url}|View run on GitHub>"
-                ),
+                message=(f"🔄 Pipeline retry triggered!\n<{result.github_url}|View run on GitHub>"),
                 channel_id=channel,
             )
         else:

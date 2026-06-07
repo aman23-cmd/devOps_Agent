@@ -23,28 +23,51 @@ import logging
 import signal
 import sys
 from datetime import datetime, timezone
+from typing import Any
 
 import redis.asyncio as aioredis
 
-from api.models import (
+from devops_agent.api.models import (
     DiagnosisResult,
     FixProposal,
     PipelineFailureEvent,
     RiskLevel,
 )
-from agents.coordinator import run_diagnosis_workflow
-from agents.fix_generator import generate_fix_proposals, should_auto_apply
-from agents.fix_executor import execute_fix
-from agents.slack_notifier import SlackNotifier
-from agents.validator import FixValidator
-from db.fix_history import FixHistoryRecord, FixOutcome, create_tables, get_session
-from config.settings import get_settings
+from devops_agent.agents.coordinator import run_diagnosis_workflow
+from devops_agent.agents.fix_generator import generate_fix_proposals, should_auto_apply
+from devops_agent.agents.fix_executor import execute_fix
+from devops_agent.agents.slack_notifier import SlackNotifier
+from devops_agent.agents.validator import FixValidator
+from devops_agent.db.fix_history import FixHistoryRecord, FixOutcome, create_tables, get_session
+from devops_agent.config.settings import get_settings
 
 logger = logging.getLogger("agent_worker")
 
 # ── Retry configuration ─────────────────────────────────────────
 MAX_RETRIES = 3
 BASE_BACKOFF_SECONDS = 5
+DLQ_KEY = "pipeline_failures_dlq"
+
+
+# ── Structured JSON Logging ──────────────────────────────────────
+
+
+class JSONFormatter(logging.Formatter):
+    """Structured JSON log formatter for production log aggregation."""
+
+    def format(self, record: logging.LogRecord) -> str:
+        log_entry: dict[str, Any] = {
+            "timestamp": self.formatTime(record, datefmt="%Y-%m-%dT%H:%M:%S"),
+            "level": record.levelname,
+            "logger": record.name,
+            "message": record.getMessage(),
+            "module": record.module,
+            "function": record.funcName,
+            "line": record.lineno,
+        }
+        if record.exc_info and record.exc_info[0] is not None:
+            log_entry["exception"] = self.formatException(record.exc_info)
+        return json.dumps(log_entry)
 
 
 class AgentWorker:
@@ -65,11 +88,24 @@ class AgentWorker:
 
     async def start(self) -> None:
         """Boot the worker and enter the infinite BRPOP loop."""
-        logging.basicConfig(
-            level=self._settings.LOG_LEVEL,
-            format="%(asctime)s │ %(name)-20s │ %(levelname)-7s │ %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S",
-        )
+        # Use structured JSON logging in production, human-readable in dev
+        log_format = "%(asctime)s │ %(name)-20s │ %(levelname)-7s │ %(message)s"
+        handlers: list[logging.Handler] = []
+
+        if self._settings.ENVIRONMENT == "production":
+            handler = logging.StreamHandler()
+            handler.setFormatter(JSONFormatter())
+            handlers.append(handler)
+            logging.basicConfig(
+                level=self._settings.LOG_LEVEL,
+                handlers=handlers,
+            )
+        else:
+            logging.basicConfig(
+                level=self._settings.LOG_LEVEL,
+                format=log_format,
+                datefmt="%Y-%m-%d %H:%M:%S",
+            )
 
         logger.info("=" * 64)
         logger.info("  DevOps Pipeline Agent — Worker v2")
@@ -173,10 +209,19 @@ class AgentWorker:
                 if attempt < MAX_RETRIES:
                     await asyncio.sleep(backoff)
 
-        logger.critical(
-            "All %d retries exhausted for run_id=%d", MAX_RETRIES, event.run_id
-        )
+        logger.critical("All %d retries exhausted for run_id=%d", MAX_RETRIES, event.run_id)
         await self._send_failure_alert(event, last_error)
+
+        # Push to Dead Letter Queue so the event is not lost
+        try:
+            await self._redis.lpush(DLQ_KEY, event.model_dump_json())
+            logger.info(
+                "Event pushed to DLQ — run_id=%d (key=%s)",
+                event.run_id,
+                DLQ_KEY,
+            )
+        except Exception as exc:
+            logger.error("Failed to push to DLQ: %s", exc)
 
     # ═════════════════════════════════════════════════════════
     #  Core event processing

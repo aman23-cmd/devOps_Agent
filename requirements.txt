@@ -33,6 +33,13 @@ aiohttp>=3.9.0
 google-cloud-logging==3.11.4
 boto3==1.35.86
 
+# Rate Limiting
+slowapi>=0.1.9
+
+# Observability
+prometheus-fastapi-instrumentator>=7.0.0
+
 # Utilities
 python-dotenv==1.0.1
 tenacity==9.0.0
+

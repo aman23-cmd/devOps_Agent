@@ -5,16 +5,16 @@ import pytest
 from httpx import AsyncClient, ASGITransport
 from unittest.mock import patch, MagicMock, AsyncMock
 
-from api.webhook_receiver import app
-from config.settings import get_settings
-from api.models import (
+from devops_agent.api.webhook_receiver import app
+from devops_agent.config.settings import get_settings
+from devops_agent.api.models import (
     PipelineFailureEvent,
     DiagnosisResult,
     FixProposal,
     RiskLevel,
     RootCauseCategory,
 )
-from agents.worker import AgentWorker
+from devops_agent.agents.worker import AgentWorker
 
 
 @pytest.fixture
@@ -26,14 +26,12 @@ def mock_settings():
 
 
 def create_github_signature(payload: bytes, secret: str) -> str:
-    digest = hmac.new(
-        key=secret.encode("utf-8"), msg=payload, digestmod=hashlib.sha256
-    ).hexdigest()
+    digest = hmac.new(key=secret.encode("utf-8"), msg=payload, digestmod=hashlib.sha256).hexdigest()
     return f"sha256={digest}"
 
 
 @pytest.mark.asyncio
-@patch("api.webhook_receiver._get_redis", new_callable=AsyncMock)
+@patch("devops_agent.api.webhook_receiver._get_redis", new_callable=AsyncMock)
 async def test_webhook_to_redis_enqueue(mock_get_redis, mock_settings):
     """Test webhook parses payload and enqueues to Redis."""
     mock_redis = AsyncMock()
@@ -56,9 +54,7 @@ async def test_webhook_to_redis_enqueue(mock_get_redis, mock_settings):
         "repository": {"full_name": "org/repo"},
     }
     payload_bytes = json.dumps(payload).encode("utf-8")
-    signature = create_github_signature(
-        payload_bytes, mock_settings.GITHUB_WEBHOOK_SECRET
-    )
+    signature = create_github_signature(payload_bytes, mock_settings.GITHUB_WEBHOOK_SECRET)
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -85,10 +81,10 @@ async def test_webhook_to_redis_enqueue(mock_get_redis, mock_settings):
 
 
 @pytest.mark.asyncio
-@patch("agents.worker.run_diagnosis_workflow")
-@patch("agents.worker.generate_fix_proposals")
-@patch("agents.worker.SlackNotifier")
-@patch("agents.worker.get_session")
+@patch("devops_agent.agents.worker.run_diagnosis_workflow")
+@patch("devops_agent.agents.worker.generate_fix_proposals")
+@patch("devops_agent.agents.worker.SlackNotifier")
+@patch("devops_agent.agents.worker.get_session")
 async def test_worker_process_event_integration(
     mock_get_session, mock_slack_class, mock_gen_fixes, mock_diagnosis
 ):

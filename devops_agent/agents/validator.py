@@ -20,10 +20,10 @@ from typing import Any
 
 import httpx
 
-from agents.slack_notifier import SlackNotifier
-from agents.fix_executor import ExecutionResult
-from db.fix_history import FixHistoryRecord, FixOutcome, get_session
-from config.settings import get_settings
+from devops_agent.agents.slack_notifier import SlackNotifier
+from devops_agent.agents.fix_executor import ExecutionResult
+from devops_agent.db.fix_history import FixHistoryRecord, FixOutcome, get_session
+from devops_agent.config.settings import get_settings
 
 logger = logging.getLogger("validator")
 
@@ -54,9 +54,7 @@ class FixValidator:
         settings = get_settings()
         self._token = settings.GITHUB_TOKEN
         self._notifier = SlackNotifier()
-        self._pagerduty_key: str | None = getattr(
-            settings, "PAGERDUTY_ROUTING_KEY", None
-        )
+        self._pagerduty_key: str | None = getattr(settings, "PAGERDUTY_ROUTING_KEY", None)
 
     async def validate_fix(
         self,
@@ -354,8 +352,7 @@ class FixValidator:
                 return
 
             all_failed = all(
-                r.fix_outcome in (FixOutcome.FAILURE, FixOutcome.FAILURE.value)
-                for r in recent
+                r.fix_outcome in (FixOutcome.FAILURE, FixOutcome.FAILURE.value) for r in recent
             )
 
             if not all_failed:
@@ -432,9 +429,7 @@ class FixValidator:
             async with httpx.AsyncClient(timeout=15.0) as client:
                 response = await client.post(url, json=payload)
                 if response.status_code == 202:
-                    logger.info(
-                        "PagerDuty alert sent — repo=%s category=%s", repo, category
-                    )
+                    logger.info("PagerDuty alert sent — repo=%s category=%s", repo, category)
                 else:
                     logger.error(
                         "PagerDuty alert failed: %d %s",
@@ -504,9 +499,7 @@ class FixValidator:
 
                 created_at_str = run.get("created_at", "")
                 try:
-                    created_at = datetime.fromisoformat(
-                        created_at_str.replace("Z", "+00:00")
-                    )
+                    created_at = datetime.fromisoformat(created_at_str.replace("Z", "+00:00"))
                 except (ValueError, AttributeError):
                     continue
 

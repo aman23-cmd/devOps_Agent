@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock, patch
 from fastapi.testclient import TestClient
 
 # conftest.py sets env vars at import time, so Settings won't blow up
-from api.webhook_receiver import app
+from devops_agent.api.webhook_receiver import app
 
 client = TestClient(app)
 
@@ -19,6 +19,13 @@ def test_health_endpoint():
     response = client.get("/health")
     assert response.status_code == 200
     assert response.json() == {"status": "healthy", "service": "webhook-receiver"}
+
+
+def test_root_redirects_to_dashboard():
+    """GET / should redirect to /dashboard/."""
+    response = client.get("/", follow_redirects=False)
+    assert response.status_code == 307
+    assert response.headers["location"] == "/dashboard/"
 
 
 def test_webhook_invalid_signature():
@@ -34,14 +41,13 @@ def test_webhook_invalid_signature():
     assert response.json() == {"detail": "Invalid signature"}
 
 
-@patch("api.webhook_receiver._get_redis")
+@patch("devops_agent.api.webhook_receiver._get_redis")
 def test_webhook_valid_signature_ignored_event(mock_get_redis):
     secret = "test_secret"
     payload = {"action": "completed", "workflow_run": {"conclusion": "success"}}
     payload_bytes = json.dumps(payload).encode("utf-8")
     signature = (
-        "sha256="
-        + hmac.new(secret.encode("utf-8"), payload_bytes, hashlib.sha256).hexdigest()
+        "sha256=" + hmac.new(secret.encode("utf-8"), payload_bytes, hashlib.sha256).hexdigest()
     )
 
     response = client.post(
@@ -57,7 +63,7 @@ def test_webhook_valid_signature_ignored_event(mock_get_redis):
     assert response.json()["action"] == "ignored"
 
 
-@patch("api.webhook_receiver._get_redis")
+@patch("devops_agent.api.webhook_receiver._get_redis")
 def test_webhook_valid_signature_failed_event(mock_get_redis):
     # Setup mock Redis
     mock_redis = AsyncMock()
@@ -80,8 +86,7 @@ def test_webhook_valid_signature_failed_event(mock_get_redis):
     }
     payload_bytes = json.dumps(payload).encode("utf-8")
     signature = (
-        "sha256="
-        + hmac.new(secret.encode("utf-8"), payload_bytes, hashlib.sha256).hexdigest()
+        "sha256=" + hmac.new(secret.encode("utf-8"), payload_bytes, hashlib.sha256).hexdigest()
     )
 
     response = client.post(

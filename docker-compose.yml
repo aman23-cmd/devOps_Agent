@@ -1,5 +1,3 @@
-version: "3.9"
-
 # ═══════════════════════════════════════════════════════════════
 #  DevOps Pipeline Agent — Docker Compose Stack
 # ═══════════════════════════════════════════════════════════════
@@ -42,7 +40,7 @@ services:
       dockerfile: Dockerfile
     container_name: devops-agent-worker
     env_file: .env
-    command: ["python", "-m", "agents.worker"]
+    command: ["devops-agent", "worker"]
     depends_on:
       redis:
         condition: service_healthy

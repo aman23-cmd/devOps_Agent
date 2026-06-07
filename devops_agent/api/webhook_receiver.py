@@ -22,10 +22,14 @@ from typing import Any
 import os
 import redis.asyncio as aioredis
 from fastapi import FastAPI, Header, HTTPException, Request, status
+from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
-from api.models import PipelineFailureEvent
-from config.settings import Settings, get_settings
+from devops_agent.api.models import PipelineFailureEvent
+from devops_agent.config.settings import Settings, get_settings
 
 logger = logging.getLogger("webhook_receiver")
 
@@ -62,9 +66,7 @@ async def lifespan(app: FastAPI):
         await r.ping()
         logger.info("Redis connection verified ✓")
     except Exception as e:
-        logger.warning(
-            f"Could not connect to Redis during startup (is it running?): {e}"
-        )
+        logger.warning(f"Could not connect to Redis during startup (is it running?): {e}")
 
     yield  # ← application is running
 
@@ -76,15 +78,30 @@ async def lifespan(app: FastAPI):
 
 # ── FastAPI app ──────────────────────────────────────────────────
 
+# Rate limiter — protects webhook endpoint from abuse
+limiter = Limiter(key_func=get_remote_address)
+
 app = FastAPI(
     title="DevOps Pipeline Agent — Webhook Receiver",
-    version="1.0.0",
+    version="2.0.0",
     lifespan=lifespan,
 )
 
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# Prometheus metrics — auto-instruments all endpoints, exposes /metrics
+try:
+    from prometheus_fastapi_instrumentator import Instrumentator
+
+    Instrumentator().instrument(app).expose(app, include_in_schema=False)
+    logger.info("Prometheus metrics enabled at /metrics")
+except ImportError:
+    logger.warning("prometheus-fastapi-instrumentator not installed — metrics disabled")
+
 # ── Mount routers ────────────────────────────────────────────────
-from api.slack_handler import router as slack_router  # noqa: E402
-from api.status import router as status_router  # noqa: E402
+from devops_agent.api.slack_handler import router as slack_router  # noqa: E402
+from devops_agent.api.status import router as status_router  # noqa: E402
 
 app.include_router(slack_router)
 app.include_router(status_router)
@@ -92,9 +109,16 @@ app.include_router(status_router)
 # Mount dashboard static files
 dashboard_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "dashboard")
 if os.path.exists(dashboard_path):
-    app.mount(
-        "/dashboard", StaticFiles(directory=dashboard_path, html=True), name="dashboard"
-    )
+    app.mount("/dashboard", StaticFiles(directory=dashboard_path, html=True), name="dashboard")
+
+
+# ── Root redirect ────────────────────────────────────────────────
+
+
+@app.get("/", tags=["ops"], include_in_schema=False)
+async def root():
+    """Redirect root to the dashboard."""
+    return RedirectResponse(url="/dashboard/")
 
 
 # ── Signature verification ───────────────────────────────────────
@@ -138,6 +162,7 @@ async def health():
     tags=["webhooks"],
     summary="Receive GitHub webhook events",
 )
+@limiter.limit("30/minute")
 async def receive_github_webhook(
     request: Request,
     x_hub_signature_256: str | None = Header(None),
@@ -154,9 +179,7 @@ async def receive_github_webhook(
     raw_body: bytes = await request.body()
 
     # ── Step 1: Signature verification ───────────────────────
-    if not _verify_signature(
-        raw_body, settings.GITHUB_WEBHOOK_SECRET, x_hub_signature_256 or ""
-    ):
+    if not _verify_signature(raw_body, settings.GITHUB_WEBHOOK_SECRET, x_hub_signature_256 or ""):
         logger.warning("Invalid webhook signature — rejecting payload")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

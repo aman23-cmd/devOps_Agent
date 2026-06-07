@@ -27,17 +27,17 @@ from typing import Any
 
 import autogen
 
-from api.models import (
+from devops_agent.api.models import (
     DiagnosisResult,
     FixProposal,
     PipelineFailureEvent,
     RiskLevel,
     RootCauseCategory,
 )
-from agents.diagnosis import get_diagnosis_system_prompt
-from agents.log_fetcher import fetch_github_logs
-from agents.cloud_enricher import get_cloud_context
-from config.settings import get_settings
+from devops_agent.agents.diagnosis import get_diagnosis_system_prompt
+from devops_agent.agents.log_fetcher import fetch_github_logs
+from devops_agent.agents.cloud_enricher import get_cloud_context
+from devops_agent.config.settings import get_settings
 
 logger = logging.getLogger("coordinator")
 
@@ -81,9 +81,9 @@ def _sync_fetch_logs(run_id: int, repo: str) -> str:
         import concurrent.futures
 
         with concurrent.futures.ThreadPoolExecutor() as pool:
-            result = pool.submit(
-                asyncio.run, fetch_github_logs(run_id=run_id, repo=repo)
-            ).result(timeout=120)
+            result = pool.submit(asyncio.run, fetch_github_logs(run_id=run_id, repo=repo)).result(
+                timeout=120
+            )
     else:
         result = asyncio.run(fetch_github_logs(run_id=run_id, repo=repo))
 
@@ -102,9 +102,7 @@ def _sync_get_cloud_context(repo: str, failed_at_timestamp: str) -> str:
                 get_cloud_context(repo=repo, failed_at_timestamp=failed_at_timestamp),
             ).result(timeout=60)
     else:
-        result = asyncio.run(
-            get_cloud_context(repo=repo, failed_at_timestamp=failed_at_timestamp)
-        )
+        result = asyncio.run(get_cloud_context(repo=repo, failed_at_timestamp=failed_at_timestamp))
 
     return json.dumps(result, indent=2, default=str)
 
@@ -334,9 +332,7 @@ async def run_diagnosis_workflow(
     )
 
     # ── Create agents ────────────────────────────────────────
-    coordinator, log_fetcher, cloud_enricher, diagnosis_agent = _create_agents(
-        llm_config
-    )
+    coordinator, log_fetcher, cloud_enricher, diagnosis_agent = _create_agents(llm_config)
 
     # ── Create GroupChat ─────────────────────────────────────
     group_chat, manager = _create_group_chat(
@@ -432,11 +428,7 @@ async def run_diagnosis_workflow(
     for fix_raw in raw_diagnosis.get("fix_proposals", []):
         try:
             risk_str = fix_raw.get("risk_level", "HIGH")
-            risk = (
-                RiskLevel(risk_str.upper())
-                if isinstance(risk_str, str)
-                else RiskLevel.HIGH
-            )
+            risk = RiskLevel(risk_str.upper()) if isinstance(risk_str, str) else RiskLevel.HIGH
 
             fix = FixProposal(
                 description=fix_raw.get("description", "No description"),
@@ -452,11 +444,7 @@ async def run_diagnosis_workflow(
     # Determine action taken
     if action_required == "human_review":
         action_taken = "escalated_to_human"
-    elif (
-        fix_proposals
-        and fix_proposals[0].risk_level == RiskLevel.LOW
-        and confidence >= 0.85
-    ):
+    elif fix_proposals and fix_proposals[0].risk_level == RiskLevel.LOW and confidence >= 0.85:
         action_taken = "auto_fix_eligible"
     else:
         action_taken = "awaiting_approval"

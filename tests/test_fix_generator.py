@@ -5,14 +5,14 @@ and LLM proposal generation.
 
 import pytest
 from unittest.mock import patch, MagicMock, AsyncMock
-from api.models import (
+from devops_agent.api.models import (
     DiagnosisResult,
     FixProposal,
     PipelineFailureEvent,
     RiskLevel,
     RootCauseCategory,
 )
-from agents.fix_generator import (
+from devops_agent.agents.fix_generator import (
     should_auto_apply,
     _extract_keywords,
     generate_fix_proposals,
@@ -98,12 +98,10 @@ def test_should_auto_apply_rules():
 
 
 @pytest.mark.asyncio
-@patch("agents.fix_generator.anthropic.AsyncAnthropic")
-@patch("agents.fix_generator.query_fix_history")
-@patch("agents.fix_generator.get_settings")
-async def test_generate_fix_proposals(
-    mock_get_settings, mock_query_history, mock_anthropic_class
-):
+@patch("devops_agent.agents.fix_generator.anthropic.AsyncAnthropic")
+@patch("devops_agent.agents.fix_generator.query_fix_history")
+@patch("devops_agent.agents.fix_generator.get_settings")
+async def test_generate_fix_proposals(mock_get_settings, mock_query_history, mock_anthropic_class):
     # Mock settings
     mock_settings = MagicMock()
     mock_settings.ANTHROPIC_API_KEY = "test_key"

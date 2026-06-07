@@ -15,7 +15,7 @@ import time
 from unittest.mock import AsyncMock, patch
 from fastapi.testclient import TestClient
 
-from api.webhook_receiver import app
+from devops_agent.api.webhook_receiver import app
 
 client = TestClient(app)
 
@@ -75,7 +75,7 @@ def test_slack_interaction_apply_fix():
     body_bytes, headers = _build_request("apply_fix")
 
     with patch(
-        "api.slack_handler._handle_apply_fix", new_callable=AsyncMock
+        "devops_agent.api.slack_handler._handle_apply_fix", new_callable=AsyncMock
     ) as mock_handler:
         response = client.post(
             "/slack/interact",
@@ -104,7 +104,7 @@ def test_slack_interaction_retry_pipeline():
     body_bytes, headers = _build_request("retry_pipeline")
 
     with patch(
-        "api.slack_handler._handle_retry_pipeline", new_callable=AsyncMock
+        "devops_agent.api.slack_handler._handle_retry_pipeline", new_callable=AsyncMock
     ) as mock_handler:
         response = client.post(
             "/slack/interact",
@@ -133,10 +133,10 @@ def test_slack_interaction_view_logs():
     # No background handler should be called for view_logs
     with (
         patch(
-            "api.slack_handler._handle_apply_fix", new_callable=AsyncMock
+            "devops_agent.api.slack_handler._handle_apply_fix", new_callable=AsyncMock
         ) as mock_apply,
         patch(
-            "api.slack_handler._handle_retry_pipeline", new_callable=AsyncMock
+            "devops_agent.api.slack_handler._handle_retry_pipeline", new_callable=AsyncMock
         ) as mock_retry,
     ):
         response = client.post(

@@ -15,14 +15,14 @@ Modules:
   worker           → Redis consumer loop with retry logic
 """
 
-from agents.coordinator import run_diagnosis_workflow
-from agents.log_fetcher import fetch_github_logs
-from agents.cloud_enricher import get_cloud_context
-from agents.diagnosis import get_diagnosis_system_prompt
-from agents.fix_generator import generate_fix_proposals, should_auto_apply
-from agents.fix_executor import execute_fix
-from agents.slack_notifier import SlackNotifier
-from agents.validator import FixValidator
+from devops_agent.agents.coordinator import run_diagnosis_workflow
+from devops_agent.agents.log_fetcher import fetch_github_logs
+from devops_agent.agents.cloud_enricher import get_cloud_context
+from devops_agent.agents.diagnosis import get_diagnosis_system_prompt
+from devops_agent.agents.fix_generator import generate_fix_proposals, should_auto_apply
+from devops_agent.agents.fix_executor import execute_fix
+from devops_agent.agents.slack_notifier import SlackNotifier
+from devops_agent.agents.validator import FixValidator
 
 __all__ = [
     "run_diagnosis_workflow",

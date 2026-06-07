@@ -17,6 +17,6 @@ os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
 os.environ.setdefault("DATABASE_URL", "postgresql://devops:devops@localhost/devops")
 
 # Clear the lru_cache so Settings picks up our test env vars
-from config.settings import get_settings
+from devops_agent.config.settings import get_settings
 
 get_settings.cache_clear()

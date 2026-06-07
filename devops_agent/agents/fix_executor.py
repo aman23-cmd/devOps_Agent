@@ -19,8 +19,8 @@ from typing import Any
 
 import httpx
 
-from api.models import FixProposal
-from config.settings import get_settings
+from devops_agent.api.models import FixProposal
+from devops_agent.config.settings import get_settings
 
 logger = logging.getLogger("fix_executor")
 
@@ -34,9 +34,7 @@ class ExecutionResult:
     success: bool
     action_taken: str  # "rerun_failed_jobs" | "pr_created" | "none"
     github_url: str | None = None
-    timestamp: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     error: str | None = None
     details: dict[str, Any] = field(default_factory=dict)
 
@@ -203,9 +201,7 @@ async def _create_pr_with_patches(
                 blob_url,
                 headers=hdrs,
                 json={
-                    "content": base64.b64encode(content.encode("utf-8")).decode(
-                        "ascii"
-                    ),
+                    "content": base64.b64encode(content.encode("utf-8")).decode("ascii"),
                     "encoding": "base64",
                 },
             )
@@ -428,7 +424,5 @@ async def _open_pull_request(
         logger.warning("PR may already exist: %s", response.text[:200])
         return f"https://github.com/{repo}/compare/{base}...{head}"
     else:
-        logger.error(
-            "PR creation failed: %d %s", response.status_code, response.text[:200]
-        )
+        logger.error("PR creation failed: %d %s", response.status_code, response.text[:200])
         return None

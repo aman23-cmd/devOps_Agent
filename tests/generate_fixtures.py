@@ -2,7 +2,7 @@ import json
 import os
 import random
 from tests.mock_logs import generate_mock_log
-from api.models import RootCauseCategory
+from devops_agent.api.models import RootCauseCategory
 
 
 def generate_fixtures(num_samples: int = 50):

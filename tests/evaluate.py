@@ -6,8 +6,8 @@ from collections import defaultdict
 from typing import List
 from unittest.mock import patch
 
-from api.models import PipelineFailureEvent
-from agents.coordinator import run_diagnosis_workflow
+from devops_agent.api.models import PipelineFailureEvent
+from devops_agent.agents.coordinator import run_diagnosis_workflow
 from datetime import datetime, timezone
 
 
@@ -64,7 +64,7 @@ async def evaluate():
 
         # Mock fetch_github_logs to return our fixture log
         with patch(
-            "agents.coordinator.fetch_github_logs",
+            "devops_agent.agents.coordinator.fetch_github_logs",
             return_value={
                 "truncated_logs": log_content,
                 "error_message": "",
@@ -74,7 +74,7 @@ async def evaluate():
         ):
             # We also mock get_cloud_context to be empty to focus purely on log analysis
             with patch(
-                "agents.coordinator.get_cloud_context",
+                "devops_agent.agents.coordinator.get_cloud_context",
                 return_value={"infrastructure_summary": "No cloud context available."},
             ):
                 print(

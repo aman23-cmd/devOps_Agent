@@ -3,7 +3,7 @@
 import pytest
 from unittest.mock import patch, AsyncMock, MagicMock
 from datetime import datetime, timezone
-from api.models import (
+from devops_agent.api.models import (
     PipelineFailureEvent,
     DiagnosisResult,
     FixProposal,
@@ -13,8 +13,8 @@ from api.models import (
 
 
 @pytest.mark.asyncio
-@patch("agents.slack_notifier.AsyncWebClient")
-@patch("agents.slack_notifier.get_settings")
+@patch("devops_agent.agents.slack_notifier.AsyncWebClient")
+@patch("devops_agent.agents.slack_notifier.get_settings")
 async def test_send_failure_alert(mock_settings_fn, mock_ws_cls):
     s = MagicMock()
     s.SLACK_BOT_TOKEN = "xoxb-test"
@@ -25,7 +25,7 @@ async def test_send_failure_alert(mock_settings_fn, mock_ws_cls):
     mock_ws_cls.return_value = mock_ws
     mock_ws.chat_postMessage.return_value = {"ts": "12345.67890"}
 
-    from agents.slack_notifier import SlackNotifier
+    from devops_agent.agents.slack_notifier import SlackNotifier
 
     notifier = SlackNotifier()
 

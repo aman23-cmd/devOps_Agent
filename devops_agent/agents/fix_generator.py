@@ -19,15 +19,15 @@ from typing import Any
 
 import anthropic
 
-from api.models import (
+from devops_agent.api.models import (
     DiagnosisResult,
     FixProposal,
     PipelineFailureEvent,
     RiskLevel,
     RootCauseCategory,
 )
-from db.fix_history import FixHistoryRecord, FixOutcome, get_session
-from config.settings import get_settings
+from devops_agent.db.fix_history import FixHistoryRecord, FixOutcome, get_session
+from devops_agent.config.settings import get_settings
 
 logger = logging.getLogger("fix_generator")
 
@@ -130,9 +130,7 @@ def query_fix_history(
                     "repo": record.repo,
                     "error_message": (record.error_message or "")[:200],
                     "root_cause_category": record.root_cause_category,
-                    "created_at": (
-                        record.created_at.isoformat() if record.created_at else None
-                    ),
+                    "created_at": (record.created_at.isoformat() if record.created_at else None),
                 }
             )
 
@@ -180,11 +178,7 @@ def _extract_keywords(error_message: str) -> list[str]:
         "found",
     }
     words = error_message.lower().split()
-    keywords = [
-        w.strip(".,;:!?\"'()[]{}")
-        for w in words
-        if len(w) > 3 and w.lower() not in noise
-    ]
+    keywords = [w.strip(".,;:!?\"'()[]{}") for w in words if len(w) > 3 and w.lower() not in noise]
     return keywords[:5]
 
 
