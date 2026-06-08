@@ -234,10 +234,12 @@ async def get_recent_records(limit: int = 20) -> list[dict]:
     session_maker = get_session()
     async with session_maker() as session:
         try:
-            stmt = select(FixHistoryRecord).order_by(FixHistoryRecord.created_at.desc()).limit(limit)
+            stmt = (
+                select(FixHistoryRecord).order_by(FixHistoryRecord.created_at.desc()).limit(limit)
+            )
             result = await session.execute(stmt)
             records = result.scalars().all()
-            
+
             return [
                 {
                     "id": r.id,
@@ -249,7 +251,9 @@ async def get_recent_records(limit: int = 20) -> list[dict]:
                     "confidence": r.confidence,
                     "fix_applied": r.fix_applied,
                     "fix_outcome": (
-                        r.fix_outcome.value if hasattr(r.fix_outcome, "value") else str(r.fix_outcome)
+                        r.fix_outcome.value
+                        if hasattr(r.fix_outcome, "value")
+                        else str(r.fix_outcome)
                     ),
                     "risk_level": r.risk_level,
                     "fix_method": r.fix_method,
@@ -280,29 +284,43 @@ async def get_analytics_summary() -> dict:
     async with session_maker() as session:
         try:
             total = (await session.execute(select(func.count(FixHistoryRecord.id)))).scalar() or 0
-            
-            stmt_succ = select(func.count(FixHistoryRecord.id)).where(FixHistoryRecord.fix_outcome == FixOutcome.SUCCESS)
+
+            stmt_succ = select(func.count(FixHistoryRecord.id)).where(
+                FixHistoryRecord.fix_outcome == FixOutcome.SUCCESS
+            )
             successes = (await session.execute(stmt_succ)).scalar() or 0
-            
-            stmt_fail = select(func.count(FixHistoryRecord.id)).where(FixHistoryRecord.fix_outcome == FixOutcome.FAILURE)
+
+            stmt_fail = select(func.count(FixHistoryRecord.id)).where(
+                FixHistoryRecord.fix_outcome == FixOutcome.FAILURE
+            )
             failures = (await session.execute(stmt_fail)).scalar() or 0
-            
-            stmt_pend = select(func.count(FixHistoryRecord.id)).where(FixHistoryRecord.fix_outcome == FixOutcome.PENDING)
+
+            stmt_pend = select(func.count(FixHistoryRecord.id)).where(
+                FixHistoryRecord.fix_outcome == FixOutcome.PENDING
+            )
             pending = (await session.execute(stmt_pend)).scalar() or 0
-            
-            stmt_dur = select(func.avg(FixHistoryRecord.duration_seconds)).where(FixHistoryRecord.duration_seconds.isnot(None))
+
+            stmt_dur = select(func.avg(FixHistoryRecord.duration_seconds)).where(
+                FixHistoryRecord.duration_seconds.isnot(None)
+            )
             avg_duration = (await session.execute(stmt_dur)).scalar()
-            
-            stmt_auto = select(func.count(FixHistoryRecord.id)).where(FixHistoryRecord.auto_applied == True)  # noqa: E712
+
+            stmt_auto = select(func.count(FixHistoryRecord.id)).where(
+                FixHistoryRecord.auto_applied == True
+            )  # noqa: E712
             auto_count = (await session.execute(stmt_auto)).scalar() or 0
 
             # Category breakdown
-            stmt_cat = select(FixHistoryRecord.root_cause_category, func.count(FixHistoryRecord.id)).group_by(FixHistoryRecord.root_cause_category)
+            stmt_cat = select(
+                FixHistoryRecord.root_cause_category, func.count(FixHistoryRecord.id)
+            ).group_by(FixHistoryRecord.root_cause_category)
             category_rows = (await session.execute(stmt_cat)).all()
             by_category = {cat: cnt for cat, cnt in category_rows if cat}
 
             # Fix method breakdown
-            stmt_method = select(FixHistoryRecord.fix_method, func.count(FixHistoryRecord.id)).group_by(FixHistoryRecord.fix_method)
+            stmt_method = select(
+                FixHistoryRecord.fix_method, func.count(FixHistoryRecord.id)
+            ).group_by(FixHistoryRecord.fix_method)
             method_rows = (await session.execute(stmt_method)).all()
             by_method = {m: cnt for m, cnt in method_rows if m}
 

@@ -129,7 +129,9 @@ async def query_fix_history(
                         "repo": record.repo,
                         "error_message": (record.error_message or "")[:200],
                         "root_cause_category": record.root_cause_category,
-                        "created_at": (record.created_at.isoformat() if record.created_at else None),
+                        "created_at": (
+                            record.created_at.isoformat() if record.created_at else None
+                        ),
                     }
                 )
 

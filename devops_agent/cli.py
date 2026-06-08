@@ -64,19 +64,18 @@ async def run_start_all(host: str, port: int) -> None:
     try:
         # Wait for either task to complete (e.g. server exits due to signal)
         done, pending = await asyncio.wait(
-            [server_task, worker_task], 
-            return_when=asyncio.FIRST_COMPLETED
+            [server_task, worker_task], return_when=asyncio.FIRST_COMPLETED
         )
-        
+
         # Shut down the other task
         if server_task in pending:
             server.should_exit = True
             await server_task
-            
+
         if worker_task in pending:
             worker._shutdown()
             await worker_task
-            
+
     except asyncio.CancelledError:
         print("\nShutting down API and worker...")
         server.should_exit = True
@@ -231,9 +230,15 @@ def main() -> None:
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
     # ── start-all ──
-    start_all_parser = subparsers.add_parser("start-all", help="Start both API and Worker (Single Process)")
-    start_all_parser.add_argument("--host", default="0.0.0.0", help="Bind host for API (default: 0.0.0.0)")
-    start_all_parser.add_argument("--port", type=int, default=8000, help="Bind port for API (default: 8000)")
+    start_all_parser = subparsers.add_parser(
+        "start-all", help="Start both API and Worker (Single Process)"
+    )
+    start_all_parser.add_argument(
+        "--host", default="0.0.0.0", help="Bind host for API (default: 0.0.0.0)"
+    )
+    start_all_parser.add_argument(
+        "--port", type=int, default=8000, help="Bind port for API (default: 8000)"
+    )
     start_all_parser.set_defaults(func=cmd_start_all)
 
     # ── api ──

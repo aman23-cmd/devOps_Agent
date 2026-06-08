@@ -125,7 +125,7 @@ class AgentWorker:
         await create_tables()
 
         self._running = True
-        
+
         while self._running:
             try:
                 self._redis = aioredis.from_url(
@@ -411,7 +411,7 @@ class AgentWorker:
                     )
                     result = await session.execute(stmt)
                     record = result.scalars().first()
-                    
+
                     if record:
                         record.fix_outcome = FixOutcome.FAILURE
                         record.resolved_at = datetime.now(timezone.utc)

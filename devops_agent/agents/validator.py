@@ -355,8 +355,7 @@ class FixValidator:
                     return
 
                 all_failed = all(
-                    r.fix_outcome in (FixOutcome.FAILURE, FixOutcome.FAILURE.value)
-                    for r in recent
+                    r.fix_outcome in (FixOutcome.FAILURE, FixOutcome.FAILURE.value) for r in recent
                 )
 
                 if not all_failed:
