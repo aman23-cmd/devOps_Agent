@@ -85,6 +85,9 @@ cp .env.example .env
 ```
 *(Make sure to add your `GITHUB_TOKEN`, `SLACK_BOT_TOKEN`, and `ANTHROPIC_API_KEY`)*
 
+**Note on Databases:** 
+This agent uses a **Zero-Setup SQLite Fallback**. If you do not provide a `DATABASE_URL` in your `.env` file, the agent will automatically create and use a local `sqlite:///devops.db` file, perfect for local development! For production, simply provide a PostgreSQL connection string (e.g., `postgresql+asyncpg://user:pass@host/db`) and it will automatically adapt.
+
 ### 3. GitHub Webhook Setup
 
 For the agent to receive events, you must configure a Webhook in your GitHub repository:
@@ -94,17 +97,9 @@ For the agent to receive events, you must configure a Webhook in your GitHub rep
 4. **Secret:** The same secret you set as `GITHUB_WEBHOOK_SECRET` in your `.env` file.
 5. **Events:** Select "Let me select individual events" and check **Workflow runs**.
 
-### 4. Run with Docker Compose (Recommended)
+### 4. Run Locally (Zero-Setup Development Mode)
 
-Start the entire stack (API, Worker, Redis, PostgreSQL):
-
-```bash
-docker-compose up --build -d
-```
-
-### 5. Run Locally (Development Mode)
-
-If you prefer to run it without Docker:
+You can run the entire agent (API Server + Background Worker) concurrently in a single terminal process. This requires zero database configuration because of the automatic SQLite fallback. It is also completely resilient—if you don't have Redis running, the worker will gracefully wait in the background without crashing your web API!
 
 ```bash
 # Create and activate virtual environment
@@ -114,24 +109,27 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 # Install dependencies
 pip install -r requirements.txt
 
-# Start the FastAPI server
-uvicorn api.webhook_receiver:app --reload
-
-# In a separate terminal, start the worker
-python -m agents.worker
+# Start both the API and Worker concurrently
+python devops_agent/cli.py start-all
 ```
+Your dashboard will instantly be available at **http://127.0.0.1:8000/dashboard**
 
-### 6. Database Migrations (Alembic)
+### 5. Production Free-Tier Deployment (Render, Koyeb)
+
+The `start-all` command was explicitly designed to allow the entire asynchronous stack (Webhook API and LLM Worker) to be deployed on a **single free-tier server instance** (like Render, Koyeb, or Railway). 
+
+Just use the following start command in your deployment configuration:
+```bash
+python devops_agent/cli.py start-all --host 0.0.0.0 --port 8000
+```
+*(Remember to provision a free managed Redis instance and inject the `REDIS_URL` environment variable).*
+
+### 6. Run with Docker Compose (Enterprise Mode)
+
+To start the full enterprise stack (API, Worker, Redis, and PostgreSQL) in isolated containers:
 
 ```bash
-# Generate a new migration after model changes
-alembic revision --autogenerate -m "describe your change"
-
-# Apply all pending migrations
-alembic upgrade head
-
-# Rollback the last migration
-alembic downgrade -1
+docker-compose up --build -d
 ```
 
 ---
