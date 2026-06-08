@@ -2,6 +2,7 @@
 devops-agent CLI — Unified command-line interface for the DevOps Pipeline Agent.
 
 Usage:
+    devops-agent start-all                          Start both API and Worker (Single-Process)
     devops-agent api [--host HOST] [--port PORT]   Start the webhook API server
     devops-agent worker                             Start the background worker
     devops-agent status                             Check agent health
@@ -39,6 +40,56 @@ def cmd_worker(args: argparse.Namespace) -> None:
     except KeyboardInterrupt:
         print("\nWorker stopped")
         sys.exit(0)
+
+
+async def run_start_all(host: str, port: int) -> None:
+    """Run both the FastAPI server and Background Worker concurrently."""
+    import uvicorn
+    from devops_agent.agents.worker import AgentWorker
+
+    config = uvicorn.Config(
+        "devops_agent.api.webhook_receiver:app",
+        host=host,
+        port=port,
+    )
+    server = uvicorn.Server(config)
+    worker = AgentWorker()
+
+    print(f"[API] Listening on {host}:{port}")
+    print("[Worker] Started")
+
+    server_task = asyncio.create_task(server.serve())
+    worker_task = asyncio.create_task(worker.start())
+
+    try:
+        # Wait for either task to complete (e.g. server exits due to signal)
+        done, pending = await asyncio.wait(
+            [server_task, worker_task], 
+            return_when=asyncio.FIRST_COMPLETED
+        )
+        
+        # Shut down the other task
+        if server_task in pending:
+            server.should_exit = True
+            await server_task
+            
+        if worker_task in pending:
+            worker._shutdown()
+            await worker_task
+            
+    except asyncio.CancelledError:
+        print("\nShutting down API and worker...")
+        server.should_exit = True
+        worker._shutdown()
+        await asyncio.gather(server_task, worker_task, return_exceptions=True)
+
+
+def cmd_start_all(args: argparse.Namespace) -> None:
+    """Start both API and Worker in a single process."""
+    try:
+        asyncio.run(run_start_all(args.host, args.port))
+    except KeyboardInterrupt:
+        pass
 
 
 def cmd_status(args: argparse.Namespace) -> None:
@@ -167,6 +218,7 @@ def main() -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
             "Examples:\n"
+            "  devops-agent start-all              Start both API and Worker concurrently\n"
             "  devops-agent api                    Start the webhook receiver\n"
             "  devops-agent api --port 9000        Start on custom port\n"
             "  devops-agent worker                 Start the background worker\n"
@@ -177,6 +229,12 @@ def main() -> None:
     parser.add_argument("--version", action="version", version=f"devops-agent {__version__}")
 
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
+
+    # ── start-all ──
+    start_all_parser = subparsers.add_parser("start-all", help="Start both API and Worker (Single Process)")
+    start_all_parser.add_argument("--host", default="0.0.0.0", help="Bind host for API (default: 0.0.0.0)")
+    start_all_parser.add_argument("--port", type=int, default=8000, help="Bind port for API (default: 8000)")
+    start_all_parser.set_defaults(func=cmd_start_all)
 
     # ── api ──
     api_parser = subparsers.add_parser("api", help="Start the webhook API server")

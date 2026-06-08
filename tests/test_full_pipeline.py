@@ -128,8 +128,10 @@ async def test_worker_process_event_integration(
     mock_slack_class.return_value = mock_notifier_instance
 
     # Mock the DB session to avoid needing a real PostgreSQL connection
-    mock_session = MagicMock()
-    mock_get_session.return_value = mock_session
+    mock_session = AsyncMock()
+    # Mock the async context manager behavior
+    mock_session.__aenter__.return_value = mock_session
+    mock_get_session.return_value = MagicMock(return_value=mock_session)
 
     worker = AgentWorker()
     worker._notifier = mock_notifier_instance

@@ -23,6 +23,7 @@ import httpx
 from devops_agent.agents.slack_notifier import SlackNotifier
 from devops_agent.agents.fix_executor import ExecutionResult
 from devops_agent.db.fix_history import FixHistoryRecord, FixOutcome, get_session
+from sqlalchemy import select
 from devops_agent.config.settings import get_settings
 
 logger = logging.getLogger("validator")
@@ -228,25 +229,25 @@ class FixValidator:
         channel_id: str | None,
     ) -> None:
         """Update DB and Slack after successful fix validation."""
-        # Update DB
-        session = get_session()
-        try:
-            record = (
-                session.query(FixHistoryRecord)
-                .filter_by(run_id=run_id)
-                .order_by(FixHistoryRecord.created_at.desc())
-                .first()
-            )
-            if record:
-                record.fix_outcome = FixOutcome.SUCCESS
-                record.resolved_at = datetime.now(timezone.utc)
-                session.commit()
-                logger.info("DB updated — run_id=%d outcome=success", run_id)
-        except Exception as exc:
-            session.rollback()
-            logger.error("DB update failed: %s", exc)
-        finally:
-            session.close()
+        # ── Update DB to SUCCESS
+        session_maker = get_session()
+        async with session_maker() as session:
+            try:
+                stmt = (
+                    select(FixHistoryRecord)
+                    .filter_by(run_id=run_id)
+                    .order_by(FixHistoryRecord.created_at.desc())
+                )
+                result = await session.execute(stmt)
+                record = result.scalars().first()
+                if record:
+                    record.fix_outcome = FixOutcome.SUCCESS
+                    record.resolved_at = datetime.now(timezone.utc)
+                    await session.commit()
+                    logger.info("DB updated — run_id=%d outcome=success", run_id)
+            except Exception as exc:
+                await session.rollback()
+                logger.error("DB update failed (SUCCESS): %s", exc)
 
         # Send resolution to Slack
         if slack_ts:
@@ -280,26 +281,26 @@ class FixValidator:
         channel_id: str | None,
     ) -> None:
         """Update DB, escalate via Slack, check for repeated failures."""
-        # Update DB
-        session = get_session()
+        # ── Update DB to FAILURE and capture category for escalation check
         category: str | None = None
-        try:
-            record = (
-                session.query(FixHistoryRecord)
-                .filter_by(run_id=run_id)
-                .order_by(FixHistoryRecord.created_at.desc())
-                .first()
-            )
-            if record:
-                record.fix_outcome = FixOutcome.FAILURE
-                record.resolved_at = datetime.now(timezone.utc)
-                category = record.root_cause_category
-                session.commit()
-        except Exception as exc:
-            session.rollback()
-            logger.error("DB update failed: %s", exc)
-        finally:
-            session.close()
+        session_maker = get_session()
+        async with session_maker() as session:
+            try:
+                stmt = (
+                    select(FixHistoryRecord)
+                    .filter_by(run_id=run_id)
+                    .order_by(FixHistoryRecord.created_at.desc())
+                )
+                result = await session.execute(stmt)
+                record = result.scalars().first()
+                if record:
+                    record.fix_outcome = FixOutcome.FAILURE
+                    record.resolved_at = datetime.now(timezone.utc)
+                    category = record.root_cause_category
+                    await session.commit()
+            except Exception as exc:
+                await session.rollback()
+                logger.error("DB update failed (FAILURE): %s", exc)
 
         # Escalate via Slack
         if slack_ts:
@@ -338,55 +339,57 @@ class FixValidator:
         Check if the last N fixes for this category all failed.
         If so, trigger PagerDuty and post an escalation to Slack.
         """
-        session = get_session()
-        try:
-            recent = (
-                session.query(FixHistoryRecord)
-                .filter_by(repo=repo, root_cause_category=category)
-                .order_by(FixHistoryRecord.created_at.desc())
-                .limit(CONSECUTIVE_FAILURE_THRESHOLD)
-                .all()
-            )
+        session_maker = get_session()
+        async with session_maker() as session:
+            try:
+                stmt = (
+                    select(FixHistoryRecord)
+                    .filter_by(repo=repo, root_cause_category=category)
+                    .order_by(FixHistoryRecord.created_at.desc())
+                    .limit(CONSECUTIVE_FAILURE_THRESHOLD)
+                )
+                result = await session.execute(stmt)
+                recent = list(result.scalars().all())
 
-            if len(recent) < CONSECUTIVE_FAILURE_THRESHOLD:
-                return
+                if len(recent) < CONSECUTIVE_FAILURE_THRESHOLD:
+                    return
 
-            all_failed = all(
-                r.fix_outcome in (FixOutcome.FAILURE, FixOutcome.FAILURE.value) for r in recent
-            )
-
-            if not all_failed:
-                return
-
-            logger.critical(
-                "🚨 %d consecutive failures for category=%s repo=%s — escalating!",
-                CONSECUTIVE_FAILURE_THRESHOLD,
-                category,
-                repo,
-            )
-
-            # PagerDuty alert
-            await self._send_pagerduty_alert(repo=repo, category=category)
-
-            # Slack escalation
-            if slack_ts:
-                await self._notifier.send_escalation(
-                    channel_id=channel_id,
-                    thread_ts=slack_ts,
-                    repo=repo,
-                    category=category,
-                    consecutive_failures=CONSECUTIVE_FAILURE_THRESHOLD,
-                    message=(
-                        "Automated fixes have failed repeatedly. "
-                        "PagerDuty alert has been triggered. "
-                        "This requires immediate human attention."
-                    ),
+                all_failed = all(
+                    r.fix_outcome in (FixOutcome.FAILURE, FixOutcome.FAILURE.value)
+                    for r in recent
                 )
 
-        except Exception as exc:
-            logger.error("Consecutive failure check failed: %s", exc)
-        finally:
-            session.close()
+                if not all_failed:
+                    return
+
+                logger.critical(
+                    "🚨 %d consecutive failures for category=%s repo=%s — escalating!",
+                    CONSECUTIVE_FAILURE_THRESHOLD,
+                    category,
+                    repo,
+                )
+
+            except Exception as exc:
+                logger.error("Consecutive failure check failed: %s", exc)
+                return
+
+        # PagerDuty alert (outside session context)
+        await self._send_pagerduty_alert(repo=repo, category=category)
+
+        # Slack escalation
+        if slack_ts:
+            await self._notifier.send_escalation(
+                channel_id=channel_id,
+                thread_ts=slack_ts,
+                repo=repo,
+                category=category,
+                consecutive_failures=CONSECUTIVE_FAILURE_THRESHOLD,
+                message=(
+                    "Automated fixes have failed repeatedly. "
+                    "PagerDuty alert has been triggered. "
+                    "This requires immediate human attention."
+                ),
+            )
 
     async def _send_pagerduty_alert(
         self,

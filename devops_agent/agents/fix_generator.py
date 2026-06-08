@@ -26,7 +26,8 @@ from devops_agent.api.models import (
     RiskLevel,
     RootCauseCategory,
 )
-from devops_agent.db.fix_history import FixHistoryRecord, FixOutcome, get_session
+from devops_agent.db.fix_history import FixHistoryRecord, get_session
+from sqlalchemy import select
 from devops_agent.config.settings import get_settings
 
 logger = logging.getLogger("fix_generator")
@@ -47,7 +48,7 @@ AUTO_FIX_WHITELIST: set[str] = {
 # ═════════════════════════════════════════════════════════════════
 
 
-def query_fix_history(
+async def query_fix_history(
     root_cause_category: str,
     error_message: str,
     limit: int = 5,
@@ -70,83 +71,79 @@ def query_fix_history(
         List of dicts with: fix_applied, fix_commands, fix_outcome,
         confidence, risk_level, repo, error_message, created_at
     """
-    session = get_session()
-    try:
-        # Build query — prioritise same category + successful outcomes
-        query = (
-            session.query(FixHistoryRecord)
-            .filter(
-                FixHistoryRecord.root_cause_category == root_cause_category,
-                FixHistoryRecord.fix_applied.isnot(None),
-                FixHistoryRecord.fix_applied != "",
-            )
-            .order_by(
-                # Successful fixes first
-                (FixHistoryRecord.fix_outcome == FixOutcome.SUCCESS).desc(),
-                # Then by recency
-                FixHistoryRecord.created_at.desc(),
-            )
-            .limit(limit)
-        )
-
-        records = query.all()
-
-        # If we didn't get enough results, broaden the search
-        if len(records) < limit:
-            # Search across all categories for similar error messages
-            error_keywords = _extract_keywords(error_message)
-            if error_keywords:
-                broader_query = session.query(FixHistoryRecord).filter(
+    session_maker = get_session()
+    async with session_maker() as session:
+        try:
+            stmt = (
+                select(FixHistoryRecord)
+                .filter(
+                    FixHistoryRecord.root_cause_category == root_cause_category,
                     FixHistoryRecord.fix_applied.isnot(None),
-                    FixHistoryRecord.root_cause_category != root_cause_category,
+                    FixHistoryRecord.fix_applied != "",
                 )
-                # Add keyword filters
-                for keyword in error_keywords[:3]:
-                    broader_query = broader_query.filter(
-                        FixHistoryRecord.error_message.ilike(f"%{keyword}%")
-                    )
-                broader_results = (
-                    broader_query.order_by(FixHistoryRecord.created_at.desc())
-                    .limit(limit - len(records))
-                    .all()
+                .order_by(
+                    FixHistoryRecord.fix_outcome.asc(),  # SUCCESS sorts before others
+                    FixHistoryRecord.created_at.desc(),
                 )
-                records.extend(broader_results)
-
-        results = []
-        for record in records:
-            results.append(
-                {
-                    "fix_applied": record.fix_applied,
-                    "fix_commands": (
-                        json.loads(record.fix_commands) if record.fix_commands else []
-                    ),
-                    "fix_outcome": (
-                        record.fix_outcome.value
-                        if hasattr(record.fix_outcome, "value")
-                        else str(record.fix_outcome)
-                    ),
-                    "confidence": record.confidence,
-                    "risk_level": record.risk_level,
-                    "repo": record.repo,
-                    "error_message": (record.error_message or "")[:200],
-                    "root_cause_category": record.root_cause_category,
-                    "created_at": (record.created_at.isoformat() if record.created_at else None),
-                }
+                .limit(limit)
             )
 
-        logger.info(
-            "Fix history query — category=%s found=%d (limit=%d)",
-            root_cause_category,
-            len(results),
-            limit,
-        )
-        return results
+            result = await session.execute(stmt)
+            records = list(result.scalars().all())
 
-    except Exception as exc:
-        logger.error("Fix history query failed: %s", exc)
-        return []
-    finally:
-        session.close()
+            # If we didn't get enough results, broaden the search
+            if len(records) < limit:
+                # Search across all categories for similar error messages
+                error_keywords = _extract_keywords(error_message)
+                if error_keywords:
+                    broader_stmt = select(FixHistoryRecord).filter(
+                        FixHistoryRecord.fix_applied.isnot(None),
+                        FixHistoryRecord.root_cause_category != root_cause_category,
+                    )
+                    # Add keyword filters
+                    for keyword in error_keywords[:3]:
+                        broader_stmt = broader_stmt.filter(
+                            FixHistoryRecord.error_message.ilike(f"%{keyword}%")
+                        )
+                    broader_stmt = broader_stmt.order_by(FixHistoryRecord.created_at.desc()).limit(
+                        limit - len(records)
+                    )
+                    broader_results = await session.execute(broader_stmt)
+                    records.extend(broader_results.scalars().all())
+
+            results = []
+            for record in records:
+                results.append(
+                    {
+                        "fix_applied": record.fix_applied,
+                        "fix_commands": (
+                            json.loads(record.fix_commands) if record.fix_commands else []
+                        ),
+                        "fix_outcome": (
+                            record.fix_outcome.value
+                            if hasattr(record.fix_outcome, "value")
+                            else str(record.fix_outcome)
+                        ),
+                        "confidence": record.confidence,
+                        "risk_level": record.risk_level,
+                        "repo": record.repo,
+                        "error_message": (record.error_message or "")[:200],
+                        "root_cause_category": record.root_cause_category,
+                        "created_at": (record.created_at.isoformat() if record.created_at else None),
+                    }
+                )
+
+            logger.info(
+                "Fix history query — category=%s found=%d (limit=%d)",
+                root_cause_category,
+                len(results),
+                limit,
+            )
+            return results
+
+        except Exception as exc:
+            logger.error("Fix history query failed: %s", exc)
+            return []
 
 
 def _extract_keywords(error_message: str) -> list[str]:
@@ -233,7 +230,7 @@ async def generate_fix_proposals(
     settings = get_settings()
 
     # ── 1. Query fix history ─────────────────────────────────
-    history = query_fix_history(
+    history = await query_fix_history(
         root_cause_category=diagnosis.root_cause_category.value,
         error_message=diagnosis.error_message,
     )

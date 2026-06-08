@@ -49,7 +49,7 @@ async def agent_status():
         breakdowns by category and fix method
     """
     try:
-        analytics = get_analytics_summary()
+        analytics = await get_analytics_summary()
     except Exception as exc:
         logger.error("Analytics query failed: %s", exc)
         analytics = {"error": str(exc)}
@@ -87,7 +87,7 @@ async def recent_fixes(
       - count: number of records returned
       - records: list of fix history dicts with all analytics fields
     """
-    records = get_recent_records(limit=limit)
+    records = await get_recent_records(limit=limit)
     return {
         "count": len(records),
         "records": records,

@@ -39,6 +39,7 @@ from devops_agent.agents.fix_executor import execute_fix
 from devops_agent.agents.slack_notifier import SlackNotifier
 from devops_agent.agents.validator import FixValidator
 from devops_agent.db.fix_history import FixHistoryRecord, FixOutcome, create_tables, get_session
+from sqlalchemy import select
 from devops_agent.config.settings import get_settings
 
 logger = logging.getLogger("agent_worker")
@@ -121,17 +122,24 @@ class AgentWorker:
         )
         logger.info("=" * 64)
 
-        create_tables()
-
-        self._redis = aioredis.from_url(
-            self._settings.REDIS_URL,
-            decode_responses=True,
-            max_connections=5,
-        )
-        await self._redis.ping()
-        logger.info("Redis connected ✓")
+        await create_tables()
 
         self._running = True
+        
+        while self._running:
+            try:
+                self._redis = aioredis.from_url(
+                    self._settings.REDIS_URL,
+                    decode_responses=True,
+                    max_connections=5,
+                )
+                await self._redis.ping()
+                logger.info("Redis connected ✓")
+                break
+            except Exception as exc:
+                logger.warning("Could not connect to Redis (retrying in 5s): %s", exc)
+                await asyncio.sleep(5)
+
         loop = asyncio.get_running_loop()
         for sig in (signal.SIGINT, signal.SIGTERM):
             try:
@@ -161,6 +169,8 @@ class AgentWorker:
 
         while self._running:
             try:
+                if self._redis is None:
+                    raise RuntimeError("Redis not connected")
                 result = await self._redis.brpop(queue_key, timeout=5)
                 if result is None:
                     continue
@@ -214,7 +224,8 @@ class AgentWorker:
 
         # Push to Dead Letter Queue so the event is not lost
         try:
-            await self._redis.lpush(DLQ_KEY, event.model_dump_json())
+            if self._redis is not None:
+                await self._redis.lpush(DLQ_KEY, event.model_dump_json())
             logger.info(
                 "Event pushed to DLQ — run_id=%d (key=%s)",
                 event.run_id,
@@ -283,32 +294,31 @@ class AgentWorker:
             logger.error("Slack alert failed: %s", exc)
 
         # ── 5. Record in PostgreSQL ──────────────────────────
-        session = get_session()
-        try:
-            record = FixHistoryRecord(
-                run_id=event.run_id,
-                repo=event.repo_full_name,
-                branch=event.branch,
-                commit_sha=event.commit_sha,
-                workflow_name=event.workflow_name,
-                error_message=diagnosis.error_message,
-                root_cause_category=diagnosis.root_cause_category.value,
-                confidence=diagnosis.confidence,
-                explanation=diagnosis.explanation,
-                fix_applied=best_fix.description,
-                fix_commands=json.dumps(best_fix.commands),
-                risk_level=best_fix.risk_level.value,
-                fix_outcome=FixOutcome.PENDING,
-                slack_thread_ts=slack_ts,
-            )
-            session.add(record)
-            session.commit()
-            logger.info("Recorded in DB — id=%d", record.id)
-        except Exception as exc:
-            session.rollback()
-            logger.error("DB write failed: %s", exc)
-        finally:
-            session.close()
+        session_maker = get_session()
+        async with session_maker() as session:
+            try:
+                record = FixHistoryRecord(
+                    run_id=event.run_id,
+                    repo=event.repo_full_name,
+                    branch=event.branch,
+                    commit_sha=event.commit_sha,
+                    workflow_name=event.workflow_name,
+                    error_message=diagnosis.error_message,
+                    root_cause_category=diagnosis.root_cause_category.value,
+                    confidence=diagnosis.confidence,
+                    explanation=diagnosis.explanation,
+                    fix_applied=best_fix.description,
+                    fix_commands=json.dumps(best_fix.commands),
+                    risk_level=best_fix.risk_level.value,
+                    fix_outcome=FixOutcome.PENDING,
+                    slack_thread_ts=slack_ts,
+                )
+                session.add(record)
+                await session.commit()
+                logger.info("Recorded in DB — id=%d", record.id)
+            except Exception as exc:
+                await session.rollback()
+                logger.error("DB write failed: %s", exc)
 
         # ── 6. Execute + validate (or await approval) ────────
         if diagnosis.action_required == "human_review":
@@ -391,23 +401,24 @@ class AgentWorker:
                 )
 
             # Update DB
-            session = get_session()
-            try:
-                record = (
-                    session.query(FixHistoryRecord)
-                    .filter_by(run_id=event.run_id)
-                    .order_by(FixHistoryRecord.created_at.desc())
-                    .first()
-                )
-                if record:
-                    record.fix_outcome = FixOutcome.FAILURE
-                    record.resolved_at = datetime.now(timezone.utc)
-                    session.commit()
-            except Exception as exc:
-                session.rollback()
-                logger.error("DB update failed: %s", exc)
-            finally:
-                session.close()
+            session_maker = get_session()
+            async with session_maker() as session:
+                try:
+                    stmt = (
+                        select(FixHistoryRecord)
+                        .filter_by(run_id=event.run_id)
+                        .order_by(FixHistoryRecord.created_at.desc())
+                    )
+                    result = await session.execute(stmt)
+                    record = result.scalars().first()
+                    
+                    if record:
+                        record.fix_outcome = FixOutcome.FAILURE
+                        record.resolved_at = datetime.now(timezone.utc)
+                        await session.commit()
+                except Exception as exc:
+                    await session.rollback()
+                    logger.error("DB update failed: %s", exc)
 
     # ═════════════════════════════════════════════════════════
     #  Agent failure alert
@@ -420,24 +431,23 @@ class AgentWorker:
     ) -> None:
         error_msg = str(error) if error else "Unknown error"
 
-        session = get_session()
-        try:
-            record = FixHistoryRecord(
-                run_id=event.run_id,
-                repo=event.repo_full_name,
-                branch=event.branch,
-                commit_sha=event.commit_sha,
-                workflow_name=event.workflow_name,
-                error_message=f"AGENT FAILURE: {error_msg}",
-                fix_outcome=FixOutcome.FAILURE,
-            )
-            session.add(record)
-            session.commit()
-        except Exception as exc:
-            session.rollback()
-            logger.error("Could not record agent failure: %s", exc)
-        finally:
-            session.close()
+        session_maker = get_session()
+        async with session_maker() as session:
+            try:
+                record = FixHistoryRecord(
+                    run_id=event.run_id,
+                    repo=event.repo_full_name,
+                    branch=event.branch,
+                    commit_sha=event.commit_sha,
+                    workflow_name=event.workflow_name,
+                    error_message=f"AGENT FAILURE: {error_msg}",
+                    fix_outcome=FixOutcome.FAILURE,
+                )
+                session.add(record)
+                await session.commit()
+            except Exception as exc:
+                await session.rollback()
+                logger.error("Could not record agent failure: %s", exc)
 
         try:
             from slack_sdk.web.async_client import AsyncWebClient

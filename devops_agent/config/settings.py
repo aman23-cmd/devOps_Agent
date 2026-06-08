@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -36,8 +37,19 @@ class Settings(BaseSettings):
     SLACK_CHANNEL_ID: str = "#devops-alerts"
 
     # ── Persistence ───────────────────────────────────────────
-    DATABASE_URL: str = "postgresql+psycopg2://devops:devops@postgres:5432/devops_agent"
+    DATABASE_URL: str = ""
     REDIS_URL: str = "redis://redis:6379/0"
+
+    @field_validator("DATABASE_URL", mode="before")
+    @classmethod
+    def set_default_db(cls, v: object) -> str:
+        """Fall back to a local SQLite file if DATABASE_URL is not provided."""
+        if not v or not isinstance(v, str):
+            return "sqlite+aiosqlite:///devops.db"
+        # Upgrade standard sync postgres urls to asyncpg automatically
+        if v.startswith("postgresql://"):
+            return v.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return v
 
     # ── Cloud Providers (optional) ────────────────────────────
     GCP_PROJECT_ID: str | None = None

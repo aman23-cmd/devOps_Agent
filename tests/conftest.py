@@ -14,7 +14,7 @@ os.environ.setdefault("SLACK_BOT_TOKEN", "xoxb-test-token")
 os.environ.setdefault("SLACK_SIGNING_SECRET", "slack_secret")
 os.environ.setdefault("SLACK_CHANNEL_ID", "C12345")
 os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
-os.environ.setdefault("DATABASE_URL", "postgresql://devops:devops@localhost/devops")
+os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
 
 # Clear the lru_cache so Settings picks up our test env vars
 from devops_agent.config.settings import get_settings

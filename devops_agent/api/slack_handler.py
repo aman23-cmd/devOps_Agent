@@ -26,6 +26,7 @@ from devops_agent.agents.validator import FixValidator
 from devops_agent.api.models import FixProposal, RiskLevel
 from devops_agent.db.fix_history import FixHistoryRecord, FixOutcome, get_session
 from devops_agent.config.settings import get_settings
+from sqlalchemy import select
 
 logger = logging.getLogger("slack_handler")
 
@@ -198,48 +199,48 @@ async def _handle_apply_fix(
         )
 
     # ── 2. Fetch fix details from DB ─────────────────────────
-    session = get_session()
-    try:
-        record = (
-            session.query(FixHistoryRecord)
-            .filter_by(run_id=run_id)
-            .order_by(FixHistoryRecord.created_at.desc())
-            .first()
-        )
+    session_maker = get_session()
+    async with session_maker() as session:
+        try:
+            stmt = (
+                select(FixHistoryRecord)
+                .filter_by(run_id=run_id)
+                .order_by(FixHistoryRecord.created_at.desc())
+            )
+            result = await session.execute(stmt)
+            record = result.scalars().first()
 
-        if not record:
-            logger.error("No DB record for run_id=%d", run_id)
-            if message_ts:
-                await notifier.send_thread_update(
-                    thread_ts=message_ts,
-                    message="❌ Error: No fix record found in database.",
-                    channel_id=channel,
-                )
+            if not record:
+                logger.error("No DB record for run_id=%d", run_id)
+                if message_ts:
+                    await notifier.send_thread_update(
+                        thread_ts=message_ts,
+                        message="❌ Error: No fix record found in database.",
+                        channel_id=channel,
+                    )
+                return
+
+            # Check if already processed
+            if record.fix_outcome not in (FixOutcome.PENDING, FixOutcome.PENDING.value):
+                if message_ts:
+                    await notifier.send_thread_update(
+                        thread_ts=message_ts,
+                        message=f"⚠️ This fix was already processed (outcome: {record.fix_outcome})",
+                        channel_id=channel,
+                    )
+                return
+
+            # Reconstruct fix proposal
+            fix = FixProposal(
+                description=record.fix_applied or "No description",
+                commands=json.loads(record.fix_commands) if record.fix_commands else [],
+                risk_level=RiskLevel(record.risk_level or "HIGH"),
+                success_probability=0.0,
+            )
+
+        except Exception as exc:
+            logger.error("DB read failed: %s", exc)
             return
-
-        # Check if already processed
-        if record.fix_outcome not in (FixOutcome.PENDING, FixOutcome.PENDING.value):
-            if message_ts:
-                await notifier.send_thread_update(
-                    thread_ts=message_ts,
-                    message=f"⚠️ This fix was already processed (outcome: {record.fix_outcome})",
-                    channel_id=channel,
-                )
-            return
-
-        # Reconstruct fix proposal
-        fix = FixProposal(
-            description=record.fix_applied or "No description",
-            commands=json.loads(record.fix_commands) if record.fix_commands else [],
-            risk_level=RiskLevel(record.risk_level or "HIGH"),
-            success_probability=0.0,
-        )
-
-    except Exception as exc:
-        logger.error("DB read failed: %s", exc)
-        return
-    finally:
-        session.close()
 
     # ── 3. Execute fix ───────────────────────────────────────
     try:
