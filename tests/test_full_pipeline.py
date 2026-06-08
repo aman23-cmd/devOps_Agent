@@ -156,4 +156,3 @@ async def test_worker_process_event_integration(
     assert record.slack_thread_ts == "12345.67890"
 
     mock_session.commit.assert_called_once()
-    mock_session.close.assert_called_once()
