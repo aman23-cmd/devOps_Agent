@@ -306,8 +306,8 @@ async def get_analytics_summary() -> dict:
             avg_duration = (await session.execute(stmt_dur)).scalar()
 
             stmt_auto = select(func.count(FixHistoryRecord.id)).where(
-                FixHistoryRecord.auto_applied == True
-            )  # noqa: E712
+                FixHistoryRecord.auto_applied.is_(True)
+            )
             auto_count = (await session.execute(stmt_auto)).scalar() or 0
 
             # Category breakdown
